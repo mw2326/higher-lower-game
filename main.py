@@ -6,6 +6,7 @@ from datetime import datetime
 import torch
 import torch.nn as nn
 import os
+from fastapi.responses import FileResponse
 
 app = FastAPI()
 
@@ -52,6 +53,10 @@ class ListenRequest(BaseModel):
     song_id: int
 
 # --- API ENDPOINTS ---
+
+@app.get("/")
+def read_root():
+    return FileResponse("index.html")
 
 @app.get("/api/search")
 def search_songs(q: str = ""):
