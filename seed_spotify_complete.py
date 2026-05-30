@@ -57,15 +57,22 @@ def pull_absolute_discographies():
     total_tracks_inserted = 0
     
     for artist_name in KPOP_ARTISTS:
-        print(f"\n Gathering full catalog for: {artist_name}...")
+        print(f"🎤 Gathering full catalog for: {artist_name}...")
         
-        # Find the artist profile
-        search_results = sp.search(q=f"artist:{artist_name}", type="artist", limit=1)
-        if not search_results['artists']['items']:
-            print(f" Could not locate profile for {artist_name}, skipping.")
-            continue
+        # UPGRADE: Direct Artist ID routing to completely eliminate text-search collisions
+        if artist_name == "aespa":
+            artist_id = "6YV6bUjG2vSgSEv0w6XgIM"  # aespa's verified Spotify ID
+        elif artist_name == "TOMORROW X TOGETHER":
+            artist_id = "0ghw0wFg3uXm669vErw3v3"  # TXT's verified Spotify ID
+        elif artist_name == "BTS":
+            artist_id = "3Nrfpe0tUvWvXmPM3bA76r"  # BTS's verified Spotify ID
+        else:
+            # Fallback to standard text search for the remaining artists
+            search_results = sp.search(q=f"artist:{artist_name}", type="artist", limit=1)
+            if not search_results['artists']['items']:
+                continue
+            artist_id = search_results['artists']['items'][0]['id']
             
-        artist_id = search_results['artists']['items'][0]['id']
         seen_titles = set()
         
         # Loop explicitly through BOTH 'album' and 'single' types to grab early/debut eras
