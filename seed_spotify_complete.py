@@ -52,60 +52,72 @@ def rebuild_clean_database():
 def pull_absolute_discographies():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    
-    print("Connecting to Spotify API for Complete Discography Sweep...")
+    print("🚀 Connecting to Spotify API for Complete Discography Sweep...")
     total_tracks_inserted = 0
     
+    # Direct dictionary mapping to guarantee exact alphanumeric IDs for problematic artists
+    # FIX: Corrected case-sensitive alphanumeric Spotify IDs
+    ARTIST_ID_OVERRIDES = {
+        "BTS": "3Nrfpe0tUJi4K4DXYWgMUX",
+        "AESPA": "6YVMFz59CuY7ngCxTxjpxE",
+        "TOMORROW X TOGETHER": "0ghlgldX5Dd6720Q3qFyQB",
+        "TXT": "0ghlgldX5Dd6720Q3qFyQB"
+    }
+
     for artist_name in KPOP_ARTISTS:
-        print(f"🎤 Gathering full catalog for: {artist_name}...")
+        print(f"\n🎤 Processing artist: {artist_name}...")
         
-        # UPGRADE: Direct Artist ID routing to completely eliminate text-search collisions
-        if artist_name == "aespa":
-            artist_id = "6YV6bUjG2vSgSEv0w6XgIM"  # aespa's verified Spotify ID
-        elif artist_name == "TOMORROW X TOGETHER":
-            artist_id = "0ghw0wFg3uXm669vErw3v3"  # TXT's verified Spotify ID
-        elif artist_name == "BTS":
-            artist_id = "3Nrfpe0tUvWvXmPM3bA76r"  # BTS's verified Spotify ID
+        # Normalize the name to check against overrides
+        lookup_name = artist_name.strip().upper()
+        
+        if lookup_name in ARTIST_ID_OVERRIDES:
+            artist_id = ARTIST_ID_OVERRIDES[lookup_name]
+            print(f"   🎯 Override matched! Using hardcoded ID: {artist_id}")
         else:
-            # Fallback to standard text search for the remaining artists
+            # Fallback to standard search API for other groups
+            print(f"   🔍 Searching Spotify API for artist string...")
             search_results = sp.search(q=f"artist:{artist_name}", type="artist", limit=1)
             if not search_results['artists']['items']:
+                print(f"   ⚠️ Could not find any profile for {artist_name}, skipping.")
                 continue
             artist_id = search_results['artists']['items'][0]['id']
-            
+            print(f"   ✅ Found ID via search: {artist_id}")
+
+        # SANITY CHECK CATCH: Ensure the ID is a valid format before making requests
+        if not artist_id or not isinstance(artist_id, str) or " " in artist_id:
+            print(f"   ❌ CRITICAL ERROR: Malformed artist_id discovered: '{artist_id}'. Skipping to protect pipeline.")
+            continue
+
         seen_titles = set()
         
-        # Loop explicitly through BOTH 'album' and 'single' types to grab early/debut eras
         for release_type in ['album', 'single']:
-            # Pull up to 50 items per type to ensure early years don't get cut off
-            results = sp.artist_albums(artist_id, album_type=release_type, limit=50)
-            releases = results['items']
-            
-            for release in releases:
-                # Fetch tracks inside this specific release
-                tracks = sp.album_tracks(release['id'])['items']
+            print(f"   📦 Fetching {release_type} collection...")
+            try:
+                results = sp.artist_albums(artist_id, album_type=release_type, limit=50)
+                for release in results['items']:
+                    tracks = sp.album_tracks(release['id'])['items']
+                    for track in tracks:
+                        title = track['name']
+                        clean_title = title.lower().strip()
+                        
+                        if clean_title in seen_titles:
+                            continue
+                        seen_titles.add(clean_title)
+                        
+                        popularity = random.randint(70, 99)
+                        cursor.execute(
+                            "INSERT INTO songs (title, artist, genre, popularity) VALUES (?, ?, 'K-Pop', ?)",
+                            (title, artist_name, popularity)
+                        )
+                        total_tracks_inserted += 1
+            except Exception as api_err:
+                print(f"   ⚠️ API Error processing {release_type} for ID {artist_id}: {api_err}")
+                continue
                 
-                for track in tracks:
-                    title = track['name']
-                    clean_title = title.lower().strip()
-                    
-                    # Deduplicate exact matching titles (skips live/instrumental repeats if title is identical)
-                    if clean_title in seen_titles:
-                        continue
-                    seen_titles.add(clean_title)
-                    
-                    # Log track into SQL
-                    popularity = random.randint(70, 99)
-                    cursor.execute(
-                        "INSERT INTO songs (title, artist, genre, popularity) VALUES (?, ?, 'K-Pop', ?)",
-                        (title, artist_name, popularity)
-                    )
-                    total_tracks_inserted += 1
-                    
-        print(f"   Stored {len(seen_titles)} unique songs for {artist_name}")
+        print(f"   📊 Current database progress: Added {len(seen_titles)} tracks for {artist_name}")
         
     conn.commit()
-    print(f"\n Library Sync Complete! {total_tracks_inserted} total tracks written to disk database.")
+    print(f"\n🎉 Library Sync Complete! Total {total_tracks_inserted} unique tracks successfully written.")
     conn.close()
 
 def seed_matching_interaction_matrix():
