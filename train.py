@@ -65,7 +65,7 @@ class NeuralCollaborativeFiltering(nn.Module):
 
 # 3. THE TRAINING LOOP
 def train_model():
-    print("📦 Extracting rows from music_v2.db and formatting tensors...")
+    print("Extracting rows from music_v2.db and formatting tensors...")
     dataset = KpopInteractionDataset(DB_FILE)
     dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
     
@@ -105,7 +105,7 @@ def train_model():
         
     # Save the trained brain parameters to disk
     torch.save(model.state_dict(), MODEL_PATH)
-    print(f"💾 Success! Neural weight parameters saved to '{MODEL_PATH}'")
+    print(f" Success! Neural weight parameters saved to '{MODEL_PATH}'")
 
 if __name__ == "__main__":
     train_model()

@@ -53,16 +53,16 @@ def pull_absolute_discographies():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     
-    print("🚀 Connecting to Spotify API for Complete Discography Sweep...")
+    print("Connecting to Spotify API for Complete Discography Sweep...")
     total_tracks_inserted = 0
     
     for artist_name in KPOP_ARTISTS:
-        print(f"\n🎤 Gathering full catalog for: {artist_name}...")
+        print(f"\n Gathering full catalog for: {artist_name}...")
         
         # Find the artist profile
         search_results = sp.search(q=f"artist:{artist_name}", type="artist", limit=1)
         if not search_results['artists']['items']:
-            print(f"⚠️ Could not locate profile for {artist_name}, skipping.")
+            print(f" Could not locate profile for {artist_name}, skipping.")
             continue
             
         artist_id = search_results['artists']['items'][0]['id']
@@ -95,10 +95,10 @@ def pull_absolute_discographies():
                     )
                     total_tracks_inserted += 1
                     
-        print(f"   ✅ Stored {len(seen_titles)} unique songs for {artist_name}")
+        print(f"   Stored {len(seen_titles)} unique songs for {artist_name}")
         
     conn.commit()
-    print(f"\n🎉 Library Sync Complete! {total_tracks_inserted} total tracks written to disk database.")
+    print(f"\n Library Sync Complete! {total_tracks_inserted} total tracks written to disk database.")
     conn.close()
 
 def seed_matching_interaction_matrix():
@@ -110,7 +110,7 @@ def seed_matching_interaction_matrix():
     song_ids = [row[0] for row in cursor.fetchall()]
     
     if not song_ids:
-        print("❌ Error: No songs found. Run the extraction engine first.")
+        print("Error: No songs found. Run the extraction engine first.")
         return
         
     dummy_interactions = []

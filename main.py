@@ -9,7 +9,7 @@ import os
 
 app = FastAPI()
 
-# Enable CORS so your HTML frontend can communicate with the backend seamlessly
+# Enable CORS so HTML frontend can communicate with the backend seamlessly
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,7 +18,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Crucial: Switching back to your massive 492K Spotify K-pop database file
 DB_FILE = "music_v2.db"
 MODEL_PATH = "model.pth"
 
@@ -27,8 +26,6 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
-# --- PYTORCH DEEP LEARNING MODEL DEFINITION ---
-# This matches your train.py architecture exactly so we can load model.pth safely
 class NeuralCollaborativeFiltering(nn.Module):
     def __init__(self, num_users, num_songs, embedding_dim=16):
         super().__init__()
@@ -41,7 +38,7 @@ class NeuralCollaborativeFiltering(nn.Module):
             nn.Linear(32, 16),
             nn.ReLU(),
             nn.Linear(16, 1),
-            nn.Sigmoid()  # Outputs a percentage likelihood score between 0.0 and 1.0
+            nn.Sigmoid()
         )
         
     def forward(self, user_id, song_id):
@@ -56,7 +53,6 @@ class ListenRequest(BaseModel):
 
 # --- API ENDPOINTS ---
 
-# 1. Global Search: Pulls songs from your massive K-pop library using wildcard SQL filters
 @app.get("/api/search")
 def search_songs(q: str = ""):
     if not q:
@@ -102,7 +98,6 @@ def get_recommendations(user_id: int):
     cursor.execute("SELECT MAX(id) FROM songs")
     max_song = cursor.fetchone()[0] or 2000
     
-    # Load your PyTorch neural network brain shell
     model = NeuralCollaborativeFiltering(num_users=max_user, num_songs=max_song)
     
     model_loaded = False
@@ -113,7 +108,7 @@ def get_recommendations(user_id: int):
             model.eval()  # Freeze layers into evaluation/inference mode
             model_loaded = True
         except Exception as e:
-            print(f"⚠️ Could not load model.pth weight layers: {e}")
+            print(f"Could not load model.pth weight layers: {e}")
             
     # Extract songs this specific user has already listened to so we don't repeat them
     cursor.execute("SELECT song_id FROM listening_history WHERE user_id = ?", (user_id,))
