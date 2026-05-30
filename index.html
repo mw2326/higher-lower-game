@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep K-Pop Recommendation Engine</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 950px; margin: 40px auto; background: #0b0f19; color: #cbd5e1; padding: 0 20px; display: flex; gap: 40px; }
+        .main-panel { flex: 2; }
+        .side-panel { flex: 1.2; background: #111827; padding: 24px; border-radius: 12px; border: 1px solid #1f2937; height: fit-content; }
+        h2 { color: #fff; font-size: 1.5rem; margin-top: 0; padding-bottom: 8px; border-bottom: 1px solid #1f2937; }
+        
+        /* Modern Search Input */
+        .search-box { width: 100%; padding: 12px; background: #1f2937; border: 1px solid #374151; border-radius: 8px; color: #fff; font-size: 1rem; box-sizing: border-box; margin-bottom: 20px; }
+        .search-box:focus { outline: 2px solid #3b82f6; }
+
+        .track-list { display: flex; flex-direction: column; gap: 10px; }
+        .track-card { background: #1f2937; padding: 14px 18px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s; }
+        .track-card:hover { background: #374151; transform: translateY(-1px); }
+        .track-details h4 { margin: 0; color: #fff; font-size: 1.05rem; }
+        .track-details p { margin: 4px 0 0 0; font-size: 0.85rem; color: #9ca3af; }
+        
+        .badge { font-size: 0.7rem; background: #10b981; color: #fff; padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: bold; text-transform: uppercase; }
+        .play-btn { background: #3b82f6; color: #fff; border: none; padding: 8px 16px; border-radius: 20px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+        .play-btn:hover { background: #2563eb; }
+        .score-text { font-size: 0.85rem; color: #38bdf8; font-weight: bold; font-family: monospace; }
+        .engine-tag { font-size: 0.8rem; color: #6b7280; margin-top: -6px; margin-bottom: 20px; display: block; }
+    </style>
+</head>
+<body>
+
+    <div class="main-panel">
+        <h2>🔍 Search K-Pop Catalog</h2>
+        <input type="text" id="searchBar" class="search-box" placeholder="Type an artist or track (e.g., NewJeans, BTS, aespa)..." oninput="executeSearch()">
+        
+        <div id="searchResults" class="track-list"></div>
+    </div>
+
+    <div class="side-panel">
+        <h2>🧠 Deep Learning Recs</h2>
+        <span id="engineMode" class="engine-tag">Engine: Initializing...</span>
+        <div id="aiRecommendations" class="track-list"></div>
+    </div>
+
+    <script>
+        const API_BASE = "http://127.0.0.1:8000/api";
+        const USER_ID = 101; // Matches the target user space in our dataset seeding
+
+        // Dynamic lookup from SQLite using the high-performance search endpoint
+        async function executeSearch() {
+            const query = document.getElementById("searchBar").value;
+            const resultsDiv = document.getElementById("searchResults");
+            
+            if (query.trim() === "") {
+                resultsDiv.innerHTML = "<p style='color:#6b7280;'>Type something above to explore thousands of tracks...</p>";
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}`);
+                const tracks = await res.json();
+                
+                resultsDiv.innerHTML = "";
+                if (tracks.length === 0) {
+                    resultsDiv.innerHTML = "<p style='color:#6b7280;'>No tracks matched your query.</p>";
+                    return;
+                }
+
+                tracks.forEach(track => {
+                    const card = document.createElement("div");
+                    card.className = "track-card";
+                    card.innerHTML = `
+                        <div class="track-details">
+                            <h4>${track.title} <span class="badge">${track.genre}</span></h4>
+                            <p>${track.artist}</p>
+                        </div>
+                        <button class="play-btn" onclick="interact(${track.id})">▶ Listen</button>
+                    `;
+                    resultsDiv.appendChild(card);
+                });
+            } catch (err) {
+                console.error("Failed to query search backend:", err);
+            }
+        }
+
+        // Fetches your custom neural network predictions
+        async function loadAIRecommendations() {
+            try {
+                const res = await fetch(`${API_BASE}/recommendations/${USER_ID}`);
+                const data = await res.json();
+                
+                document.getElementById("engineMode").innerText = `Engine: ${data.engine}`;
+                
+                const recsDiv = document.getElementById("aiRecommendations");
+                recsDiv.innerHTML = "";
+                
+                if (!data.recs || data.recs.length === 0) {
+                    recsDiv.innerHTML = "<p style='color:#6b7280;'>Stream some tracks to build your neural taste vector!</p>";
+                    return;
+                }
+
+                data.recs.forEach(track => {
+                    const card = document.createElement("div");
+                    card.className = "track-card";
+                    card.innerHTML = `
+                        <div class="track-details">
+                            <h4>${track.title}</h4>
+                            <p>${track.artist} • <span class="score-text">Match ${track.predicted_score}%</span></p>
+                        </div>
+                    `;
+                    recsDiv.appendChild(card);
+                });
+            } catch (err) {
+                console.error("Failed to load recommendations:", err);
+            }
+        }
+
+        // Handles click interactions, updates database history, and recalculates vectors
+        async function interact(songId) {
+            try {
+                await fetch(`${API_BASE}/listen`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ user_id: USER_ID, song_id: songId })
+                });
+                
+                // Refresh both panes immediately to compute updated neural state maps
+                loadAIRecommendations();
+                executeSearch();
+            } catch (err) {
+                console.error("Failed to log interaction:", err);
+            }
+        }
+
+        // Page startup lifecycle routines
+        document.getElementById("searchResults").innerHTML = "<p style='color:#6b7280;'>Type an artist name or song title above to explore the database...</p>";
+        loadAIRecommendations();
+    </script>
+</body>
+</html>

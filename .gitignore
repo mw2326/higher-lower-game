@@ -1,0 +1,10 @@
+# Ignore API credential configuration files
+.env
+
+# Ignore local SQLite databases and large PyTorch weight binaries
+*.db
+*.pth
+
+# Ignore Python cache folder structures
+__pycache__/
+.pytest_cache/
