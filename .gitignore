@@ -1,5 +1,6 @@
 # Ignore API credential configuration files
 .env
+.cache
 
 # Ignore local SQLite databases and large PyTorch weight binaries
 *.db
