@@ -16,7 +16,7 @@ sp = spotipy.Spotify(auth_manager=auth_manager)
 # The target group list to extract absolute histories for
 KPOP_ARTISTS = [
     "NewJeans", "BTS", "aespa", "Stray Kids", "TWICE", "BLACKPINK", 
-    "SEVENTEEN", "IVE", "LE SSERAFIM", "ENHYPEN", "TXT", "Red Velvet", "NMIXX"
+    "SEVENTEEN", "IVE", "LE SSERAFIM", "ENHYPEN", "TOMORROW X TOGETHER", "Red Velvet", "NMIXX"
 ]
 
 DB_FILE = "music_v2.db"
