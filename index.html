@@ -23,7 +23,9 @@
         .badge { font-size: 0.7rem; background: #10b981; color: #fff; padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: bold; text-transform: uppercase; }
         .play-btn { background: #3b82f6; color: #fff; border: none; padding: 8px 16px; border-radius: 20px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
         .play-btn:hover { background: #2563eb; }
-        .score-text { font-size: 0.85rem; color: #38bdf8; font-weight: bold; font-family: monospace; }
+        .rec-btn { background: #10b981; }
+        .rec-btn:hover { background: #059669; }
+        .score-text { color: #38bdf8; font-weight: bold; font-family: monospace; }
         .engine-tag { font-size: 0.8rem; color: #6b7280; margin-top: -6px; margin-bottom: 20px; display: block; }
     </style>
 </head>
@@ -44,7 +46,7 @@
 
     <script>
         const API_BASE = "http://127.0.0.1:8000/api";
-        const USER_ID = 101; // Matches the target user space in our dataset seeding
+        const USER_ID = 101; 
 
         // Dynamic lookup from SQLite using the high-performance search endpoint
         async function executeSearch() {
@@ -100,13 +102,20 @@
                 }
 
                 data.recs.forEach(track => {
+                    // Safety Guard: Check both potential naming keys ('predicted_score' vs 'score')
+                    const rawScore = track.predicted_score !== undefined ? track.predicted_score : track.score;
+                    
+                    // Format calculation: Convert decimals (0.85 -> 85.0%) or handle raw percentages safely
+                    const matchPercentage = rawScore <= 1.0 ? (rawScore * 100).toFixed(1) : parseFloat(rawScore).toFixed(1);
+
                     const card = document.createElement("div");
                     card.className = "track-card";
                     card.innerHTML = `
                         <div class="track-details">
                             <h4>${track.title}</h4>
-                            <p>${track.artist} • <span class="score-text">Match ${track.predicted_score}%</span></p>
+                            <p>${track.artist} • <span class="score-text">${matchPercentage}% match</span></p>
                         </div>
+                        <button class="play-btn rec-btn" onclick="interact(${track.id})">▶ Listen</button>
                     `;
                     recsDiv.appendChild(card);
                 });
