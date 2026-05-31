@@ -3,147 +3,328 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Deep K-Pop Recommendation Engine</title>
+    <title>Higher or Lower: K-Pop Stream Edition</title>
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 950px; margin: 40px auto; background: #0b0f19; color: #cbd5e1; padding: 0 20px; display: flex; gap: 40px; }
-        .main-panel { flex: 2; }
-        .side-panel { flex: 1.2; background: #111827; padding: 24px; border-radius: 12px; border: 1px solid #1f2937; height: fit-content; }
-        h2 { color: #fff; font-size: 1.5rem; margin-top: 0; padding-bottom: 8px; border-bottom: 1px solid #1f2937; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 1100px; margin: 40px auto; background: #0b0f19; color: #cbd5e1; padding: 0 20px; display: flex; gap: 30px; }
+        .game-panel { flex: 2.5; display: flex; flex-direction: column; gap: 20px; }
+        .side-panel { flex: 1.2; display: flex; flex-direction: column; gap: 20px; }
         
-        /* Modern Search Input */
-        .search-box { width: 100%; padding: 12px; background: #1f2937; border: 1px solid #374151; border-radius: 8px; color: #fff; font-size: 1rem; box-sizing: border-box; margin-bottom: 20px; }
-        .search-box:focus { outline: 2px solid #3b82f6; }
-
-        .track-list { display: flex; flex-direction: column; gap: 10px; }
-        .track-card { background: #1f2937; padding: 14px 18px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s; }
-        .track-card:hover { background: #374151; transform: translateY(-1px); }
-        .track-details h4 { margin: 0; color: #fff; font-size: 1.05rem; }
-        .track-details p { margin: 4px 0 0 0; font-size: 0.85rem; color: #9ca3af; }
+        .box { background: #111827; padding: 24px; border-radius: 12px; border: 1px solid #1f2937; }
+        h2 { color: #fff; font-size: 1.4rem; margin-top: 0; padding-bottom: 8px; border-bottom: 1px solid #1f2937; display: flex; justify-content: space-between; align-items: center; }
         
-        .badge { font-size: 0.7rem; background: #10b981; color: #fff; padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: bold; text-transform: uppercase; }
-        .play-btn { background: #3b82f6; color: #fff; border: none; padding: 8px 16px; border-radius: 20px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
-        .play-btn:hover { background: #2563eb; }
-        .rec-btn { background: #10b981; }
-        .rec-btn:hover { background: #059669; }
-        .score-text { color: #38bdf8; font-weight: bold; font-family: monospace; }
-        .engine-tag { font-size: 0.8rem; color: #6b7280; margin-top: -6px; margin-bottom: 20px; display: block; }
+        /* Game Arena Canvas Layout */
+        .arena { display: flex; gap: 20px; align-items: stretch; margin-top: 10px; }
+        .game-card { flex: 1; background: #1f2937; border: 2px solid #374151; border-radius: 12px; padding: 30px 20px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 220px; position: relative; transition: all 0.3s ease; }
+        .game-card.active-comparison { border-color: #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.15); }
+        
+        .track-title { font-size: 1.6rem; font-weight: bold; color: #fff; margin: 0 0 6px 0; }
+        .track-artist { font-size: 1.1rem; color: #9ca3af; margin: 0 0 20px 0; font-weight: 500; }
+        
+        .stream-display { font-size: 1.8rem; font-weight: 800; font-family: monospace; color: #10b981; }
+        .stream-label { font-size: 0.8rem; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; margin-top: 4px; }
+        .vs-circle { position: absolute; right: -25px; top: 50%; transform: translateY(-50%); background: #3b82f6; color: #fff; font-weight: bold; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 4px solid #111827; z-index: 10; font-size: 0.9rem; }
+        
+        /* Action Control Triggers */
+        .btn-group { display: flex; flex-direction: column; gap: 10px; width: 80%; }
+        .game-btn { border: none; padding: 12px 24px; border-radius: 30px; font-weight: 700; font-size: 1rem; cursor: pointer; color: white; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-higher { background: #10b981; }
+        .btn-higher:hover { background: #059669; transform: translateY(-1px); }
+        .btn-lower { background: #ef4444; }
+        .btn-lower:hover { background: #dc2626; transform: translateY(-1px); }
+        
+        /* Dashboard Score Headers */
+        .score-board { display: flex; gap: 30px; font-size: 1.1rem; font-weight: 600; background: #1f2937; padding: 12px 24px; border-radius: 8px; border: 1px solid #374151; }
+        .score-val { color: #3b82f6; font-family: monospace; font-size: 1.2rem; }
+        
+        /* Forms and Ingest Elements */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group.full-width { grid-column: span 2; }
+        label { font-size: 0.85rem; color: #9ca3af; font-weight: 500; }
+        input, textarea, select { background: #1f2937; border: 1px solid #374151; padding: 10px; border-radius: 6px; color: white; font-size: 0.95rem; }
+        input:focus, textarea:focus { outline: 2px solid #3b82f6; }
+        .submit-btn { grid-column: span 2; background: #3b82f6; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 1rem; margin-top: 6px; }
+        .submit-btn:hover { background: #2563eb; }
+        
+        /* Leaderboard styling */
+        .leaderboard-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+        .leaderboard-item { display: flex; justify-content: space-between; background: #1f2937; padding: 10px 16px; border-radius: 6px; font-size: 0.95rem; align-items: center; }
+        .rank-badge { font-weight: 700; color: #f59e0b; font-family: monospace; margin-right: 8px; }
+        .streak-badge { background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 8px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
+        
+        /* Contributor Tag Vouch Badges */
+        .vouch-tag { font-size: 0.75rem; background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 3px 8px; border-radius: 4px; margin-top: 8px; font-weight: 600; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .vouch-tag span { color: #fff; }
     </style>
 </head>
 <body>
 
-    <div class="main-panel">
-        <h2>🔍 Search K-Pop Catalog</h2>
-        <input type="text" id="searchBar" class="search-box" placeholder="Type an artist or track (e.g., NewJeans, BTS, aespa)..." oninput="executeSearch()">
-        
-        <div id="searchResults" class="track-list"></div>
+    <div class="game-panel">
+        <div class="score-board">
+            <div>🔥 Current Streak: <span id="currentStreak" class="score-val">0</span></div>
+            <div>🏆 Personal Best: <span id="highScore" class="score-val">0</span></div>
+        </div>
+
+        <div class="box">
+            <h2>🎮 Higher or Lower Stream Challenge</h2>
+            <div class="arena">
+                <div class="game-card" id="cardA">
+                    <div class="vs-circle">VS</div>
+                    <div class="track-title" id="titleA">Loading...</div>
+                    <div class="track-artist" id="artistA">Artist</div>
+                    <div>
+                        <div class="stream-display" id="streamsA">0</div>
+                        <div class="stream-label">Total Stream Count</div>
+                    </div>
+                    <div class="vouch-tag" id="vouchA">Vouched by: <span>System</span></div>
+                </div>
+
+                <div class="game-card active-comparison" id="cardB">
+                    <div class="track-title" id="titleB">Loading...</div>
+                    <div class="track-artist" id="artistB">Artist</div>
+                    
+                    <div class="btn-group" id="actionGroup">
+                        <button class="game-btn btn-higher" onclick="processPlayerGuess('higher')">Higher ⬆️</button>
+                        <button class="game-btn btn-lower" onclick="processPlayerGuess('lower')">Lower ⬇️</button>
+                    </div>
+                    
+                    <div id="resultRevealBlock" style="display: none; text-align: center;">
+                        <div class="stream-display" id="streamsB">0</div>
+                        <div class="stream-label">Total Stream Count</div>
+                    </div>
+                    <div class="vouch-tag" id="vouchB">Vouched by: <span>System</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="box">
+            <h2>📥 Recommend a Track to the Catalog</h2>
+            <form id="recommendationForm" onsubmit="handleRecommendationSubmit(event)">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Song Title</label>
+                        <input type="text" id="recTitle" required placeholder="e.g., Love Is A Lonely Sea">
+                    </div>
+                    <div class="form-group">
+                        <label>Artist Name</label>
+                        <input type="text" id="recArtist" required placeholder="e.g., NMIXX">
+                    </div>
+                    <div class="form-group">
+                        <label>Genre Block</label>
+                        <input type="text" id="recGenre" value="K-Pop">
+                    </div>
+                    <div class="form-group">
+                        <label>Initial Stream Volume (From MyStreamCount)</label>
+                        <input type="number" id="recStreams" required placeholder="e.g., 42105432">
+                    </div>
+                    <div class="form-group">
+                        <label>Your Name / Submission Handle</label>
+                        <input type="text" id="recContributedBy" required placeholder="e.g., Matthew">
+                    </div>
+                    <div class="form-group">
+                        <label>Collector Notes / Vouch Context</label>
+                        <input type="text" id="recNotes" placeholder="e.g., Title track from their latest single album">
+                    </div>
+                    <button type="submit" class="submit-btn">Verify & Add to Game Pool</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <div class="side-panel">
-        <h2>🧠 Deep Learning Recs</h2>
-        <span id="engineMode" class="engine-tag">Engine: Initializing...</span>
-        <div id="aiRecommendations" class="track-list"></div>
+        <div class="box">
+            <h2>🏆 Top All-Time Streaks</h2>
+            <div id="leaderboardContainer" class="leaderboard-list">
+                <p style="color:#6b7280; font-size:0.9rem;">Initializing rankings data...</p>
+            </div>
+        </div>
     </div>
 
     <script>
         const API_BASE = "http://127.0.0.1:8000/api";
-        const USER_ID = 101; 
+        
+        let streakCounter = 0;
+        let localHighScore = 0;
+        let trackAnchorA = null;
+        let trackTargetB = null;
 
-        // Dynamic lookup from SQLite using the high-performance search endpoint
-        async function executeSearch() {
-            const query = document.getElementById("searchBar").value;
-            const resultsDiv = document.getElementById("searchResults");
-            
-            if (query.trim() === "") {
-                resultsDiv.innerHTML = "<p style='color:#6b7280;'>Type something above to explore thousands of tracks...</p>";
-                return;
-            }
-
+        // 1. Core State Ingestion Loop: Pulls a dynamic pairing matrix from database
+        async function fetchNextGamePairing() {
             try {
-                const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}`);
-                const tracks = await res.json();
-                
-                resultsDiv.innerHTML = "";
-                if (tracks.length === 0) {
-                    resultsDiv.innerHTML = "<p style='color:#6b7280;'>No tracks matched your query.</p>";
+                const res = await fetch(`${API_BASE}/game/pair`);
+                if (!res.ok) {
+                    const errData = await res.json();
+                    alert(errData.detail);
                     return;
                 }
-
-                tracks.forEach(track => {
-                    const card = document.createElement("div");
-                    card.className = "track-card";
-                    card.innerHTML = `
-                        <div class="track-details">
-                            <h4>${track.title} <span class="badge">${track.genre}</span></h4>
-                            <p>${track.artist}</p>
-                        </div>
-                        <button class="play-btn" onclick="interact(${track.id})">▶ Listen</button>
-                    `;
-                    resultsDiv.appendChild(card);
-                });
-            } catch (err) {
-                console.error("Failed to query search backend:", err);
-            }
-        }
-
-        // Fetches your custom neural network predictions
-        async function loadAIRecommendations() {
-            try {
-                const res = await fetch(`${API_BASE}/recommendations/${USER_ID}`);
                 const data = await res.json();
                 
-                document.getElementById("engineMode").innerText = `Engine: ${data.engine}`;
+                trackAnchorA = data.song_a;
+                trackTargetB = data.song_b;
                 
-                const recsDiv = document.getElementById("aiRecommendations");
-                recsDiv.innerHTML = "";
+                renderGameUIState();
+            } catch (err) {
+                console.error("Critical execution breakdown mapping pair metrics:", err);
+            }
+        }
+
+        function renderGameUIState() {
+            // Setup left-side structural baseline anchor
+            document.getElementById("titleA").innerText = trackAnchorA.title;
+            document.getElementById("artistA").innerText = trackAnchorA.artist;
+            document.getElementById("streamsA").innerText = trackAnchorA.stream_count.toLocaleString();
+            document.getElementById("vouchA").innerHTML = `Vouched by: <span>${trackAnchorA.recommended_by}</span>`;
+            
+            // Setup hidden target vector on right panel
+            document.getElementById("titleB").innerText = trackTargetB.title;
+            document.getElementById("artistB").innerText = trackTargetB.artist;
+            document.getElementById("vouchB").innerHTML = `Vouched by: <span>${trackTargetB.recommended_by}</span>`;
+            
+            // Toggle visual panels to hide streams of song B while playing
+            document.getElementById("actionGroup").style.display = "flex";
+            document.getElementById("resultRevealBlock").style.display = "none";
+        }
+
+        // 2. Evaluation Logic Engine Block
+        async function processPlayerGuess(playerChoice) {
+            document.getElementById("actionGroup").style.display = "none";
+            const revealContainer = document.getElementById("resultRevealBlock");
+            
+            // Reveal Song B's true stream metrics
+            document.getElementById("streamsB").innerText = trackTargetB.stream_count.toLocaleString();
+            revealContainer.style.display = "block";
+
+            const countA = trackAnchorA.stream_count;
+            const countB = trackTargetB.stream_count;
+            
+            // Resolve boolean win condition bounds
+            const isHigherWin = (playerChoice === 'higher' && countB >= countA);
+            const isLowerWin = (playerChoice === 'lower' && countB <= countA);
+
+            await new Promise(resolve => setTimeout(resolve, 1200)); // Short dramatic pause
+
+            if (isHigherWin || isLowerWin) {
+                // WIN STATE
+                streakCounter++;
+                if (streakCounter > localHighScore) {
+                    localHighScore = streakCounter;
+                    document.getElementById("highScore").innerText = localHighScore;
+                }
+                document.getElementById("currentStreak").innerText = streakCounter;
                 
-                if (!data.recs || data.recs.length === 0) {
-                    recsDiv.innerHTML = "<p style='color:#6b7280;'>Stream some tracks to build your neural taste vector!</p>";
+                // Mathematical optimization chain: Song B cascades to become the new baseline Anchor A
+                trackAnchorA = trackTargetB;
+                fetchNextTargetSongOnly();
+            } else {
+                // LOSS STATE
+                alert(`❌ Incorrect! ${trackTargetB.title} had ${countB.toLocaleString()} streams compared to ${trackAnchorA.title}'s ${countA.toLocaleString()}.`);
+                
+                if (streakCounter > 0) {
+                    await promptLeaderboardSubmission(streakCounter);
+                }
+                
+                streakCounter = 0;
+                document.getElementById("currentStreak").innerText = streakCounter;
+                fetchNextGamePairing(); // Fully reset both boards
+            }
+        }
+
+        // Mid-tier fetch routine: optimization shift to prevent double loading
+        async function fetchNextTargetSongOnly() {
+            try {
+                const res = await fetch(`${API_BASE}/game/pair`);
+                const data = await res.json();
+                
+                // If it picked the same song we are carrying as anchor, re-shuffle target vectors safely
+                trackTargetB = (data.song_b.id === trackAnchorA.id) ? data.song_a : data.song_b;
+                renderGameUIState();
+            } catch (err) {
+                console.error("Secondary cascade mapping failed:", err);
+            }
+        }
+
+        // 3. User Endorsement Pipeline Ingestion
+        async function handleRecommendationSubmit(event) {
+            event.preventDefault();
+            
+            const payload = {
+                title: document.getElementById("recTitle").value,
+                artist: document.getElementById("recArtist").value,
+                genre: document.getElementById("recGenre").value,
+                stream_count: parseInt(document.getElementById("recStreams").value),
+                recommended_by: document.getElementById("recContributedBy").value,
+                notes: document.getElementById("recNotes").value
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/game/recommend`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (res.ok) {
+                    alert("🎉 Recommendation successfully validated and added to the gaming catalog!");
+                    document.getElementById("recommendationForm").reset();
+                    // If playing was locked from empty tables, kick off a new game vector initialization
+                    if (!trackAnchorA) fetchNextGamePairing();
+                } else {
+                    alert("❌ Ingestion rejection error from endpoint parsing framework.");
+                }
+            } catch (err) {
+                console.error("Form handling network exception:", err);
+            }
+        }
+
+        // 4. Leaderboard Sync Matrix Management
+        async function promptLeaderboardSubmission(finalScore) {
+            const username = prompt(`🎮 Game Over! You achieved a streak of ${finalScore}! Enter your handle for the leaderboard rankings column:`);
+            if (!username || username.trim() === "") return;
+
+            try {
+                await fetch(`${API_BASE}/game/leaderboard`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username: username.trim(), high_score: finalScore })
+                });
+                loadLeaderboardData();
+            } catch (err) {
+                console.error("Leaderboard transmission trace exception:", err);
+            }
+        }
+
+        async function loadLeaderboardData() {
+            const container = document.getElementById("leaderboardContainer");
+            try {
+                const res = await fetch(`${API_BASE}/game/leaderboard`);
+                const scores = await res.json();
+                
+                container.innerHTML = "";
+                if (scores.length === 0) {
+                    container.innerHTML = "<p style='color:#6b7280; font-size:0.9rem;'>Leaderboard empty. Be the first to establish a streak rank record!</p>";
                     return;
                 }
 
-                data.recs.forEach(track => {
-                    // Safety Guard: Check both potential naming keys ('predicted_score' vs 'score')
-                    const rawScore = track.predicted_score !== undefined ? track.predicted_score : track.score;
-                    
-                    // Format calculation: Convert decimals (0.85 -> 85.0%) or handle raw percentages safely
-                    const matchPercentage = rawScore <= 1.0 ? (rawScore * 100).toFixed(1) : parseFloat(rawScore).toFixed(1);
-
-                    const card = document.createElement("div");
-                    card.className = "track-card";
-                    card.innerHTML = `
-                        <div class="track-details">
-                            <h4>${track.title}</h4>
-                            <p>${track.artist} • <span class="score-text">${matchPercentage}% match</span></p>
+                scores.forEach((row, index) => {
+                    const item = document.createElement("div");
+                    item.className = "leaderboard-item";
+                    item.innerHTML = `
+                        <div>
+                            <span class="rank-badge">#${index + 1}</span>
+                            <span style="color:#fff; font-weight:600;">${row.username}</span>
                         </div>
-                        <button class="play-btn rec-btn" onclick="interact(${track.id})">▶ Listen</button>
+                        <span class="streak-badge">${row.high_score} wins</span>
                     `;
-                    recsDiv.appendChild(card);
+                    container.appendChild(item);
                 });
             } catch (err) {
-                console.error("Failed to load recommendations:", err);
+                console.error("Rankings mapping processing error:", err);
             }
         }
 
-        // Handles click interactions, updates database history, and recalculates vectors
-        async function interact(songId) {
-            try {
-                await fetch(`${API_BASE}/listen`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ user_id: USER_ID, song_id: songId })
-                });
-                
-                // Refresh both panes immediately to compute updated neural state maps
-                loadAIRecommendations();
-                executeSearch();
-            } catch (err) {
-                console.error("Failed to log interaction:", err);
-            }
-        }
-
-        // Page startup lifecycle routines
-        document.getElementById("searchResults").innerHTML = "<p style='color:#6b7280;'>Type an artist name or song title above to explore the database...</p>";
-        loadAIRecommendations();
+        // Initial Lifecycle Execution Hooks
+        fetchNextGamePairing();
+        loadLeaderboardData();
     </script>
 </body>
 </html>
