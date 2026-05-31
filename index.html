@@ -5,56 +5,217 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Higher or Lower: K-Pop Stream Edition</title>
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 1100px; margin: 40px auto; background: #0b0f19; color: #cbd5e1; padding: 0 20px; display: flex; gap: 30px; }
-        .game-panel { flex: 2.5; display: flex; flex-direction: column; gap: 20px; }
-        .side-panel { flex: 1.2; display: flex; flex-direction: column; gap: 20px; }
-        
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            max-width: 1100px;
+            margin: 40px auto;
+            background: #0b0f19;
+            color: #cbd5e1;
+            padding: 0 20px;
+            display: flex;
+            gap: 30px;
+        }
+
+        .game-panel  { flex: 2.5; display: flex; flex-direction: column; gap: 20px; }
+        .side-panel  { flex: 1.2; display: flex; flex-direction: column; gap: 20px; }
+
         .box { background: #111827; padding: 24px; border-radius: 12px; border: 1px solid #1f2937; }
-        h2 { color: #fff; font-size: 1.4rem; margin-top: 0; padding-bottom: 8px; border-bottom: 1px solid #1f2937; display: flex; justify-content: space-between; align-items: center; }
-        
-        /* Game Arena Canvas Layout */
-        .arena { display: flex; gap: 20px; align-items: stretch; margin-top: 10px; }
-        .game-card { flex: 1; background: #1f2937; border: 2px solid #374151; border-radius: 12px; padding: 30px 20px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 220px; position: relative; transition: all 0.3s ease; }
-        .game-card.active-comparison { border-color: #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.15); }
-        
-        .track-title { font-size: 1.6rem; font-weight: bold; color: #fff; margin: 0 0 6px 0; }
-        .track-artist { font-size: 1.1rem; color: #9ca3af; margin: 0 0 20px 0; font-weight: 500; }
-        
-        .stream-display { font-size: 1.8rem; font-weight: 800; font-family: monospace; color: #10b981; }
-        .stream-label { font-size: 0.8rem; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; margin-top: 4px; }
-        .vs-circle { position: absolute; right: -25px; top: 50%; transform: translateY(-50%); background: #3b82f6; color: #fff; font-weight: bold; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 4px solid #111827; z-index: 10; font-size: 0.9rem; }
-        
-        /* Action Control Triggers */
-        .btn-group { display: flex; flex-direction: column; gap: 10px; width: 80%; }
-        .game-btn { border: none; padding: 12px 24px; border-radius: 30px; font-weight: 700; font-size: 1rem; cursor: pointer; color: white; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+        h2 {
+            color: #fff;
+            font-size: 1.4rem;
+            margin-top: 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #1f2937;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* ── Game arena ─────────────────────────────────────────── */
+        .arena {
+            display: flex;
+            gap: 20px;
+            align-items: stretch;
+            margin-top: 10px;
+        }
+
+        .game-card {
+            flex: 1;
+            background: #1f2937;
+            border: 2px solid #374151;
+            border-radius: 12px;
+            padding: 30px 20px;
+            text-align: center;
+            /* Fixed height so the card doesn't jump when we reveal streams */
+            min-height: 260px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
+            position: relative;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .game-card.active-comparison {
+            border-color: #3b82f6;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.15);
+        }
+        .game-card.correct  { border-color: #10b981; box-shadow: 0 0 15px rgba(16, 185, 129, 0.2); }
+        .game-card.incorrect { border-color: #ef4444; box-shadow: 0 0 15px rgba(239, 68, 68, 0.2); }
+
+        .track-title  { font-size: 1.5rem; font-weight: bold; color: #fff; margin: 0; }
+        .track-artist { font-size: 1.05rem; color: #9ca3af; margin: 0; font-weight: 500; }
+
+        .stream-display {
+            font-size: 1.8rem;
+            font-weight: 800;
+            font-family: monospace;
+            color: #10b981;
+            margin-top: 10px;
+        }
+        .stream-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: #6b7280;
+            letter-spacing: 1px;
+        }
+
+        .vs-circle {
+            position: absolute;
+            right: -25px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #3b82f6;
+            color: #fff;
+            font-weight: bold;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 4px solid #111827;
+            z-index: 10;
+            font-size: 0.9rem;
+        }
+
+        /* ── Buttons ────────────────────────────────────────────── */
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 80%;
+            margin-top: 10px;
+        }
+
+        .game-btn {
+            border: none;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            color: white;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
         .btn-higher { background: #10b981; }
         .btn-higher:hover { background: #059669; transform: translateY(-1px); }
-        .btn-lower { background: #ef4444; }
-        .btn-lower:hover { background: #dc2626; transform: translateY(-1px); }
-        
-        /* Dashboard Score Headers */
-        .score-board { display: flex; gap: 30px; font-size: 1.1rem; font-weight: 600; background: #1f2937; padding: 12px 24px; border-radius: 8px; border: 1px solid #374151; }
+        .btn-lower  { background: #ef4444; }
+        .btn-lower:hover  { background: #dc2626; transform: translateY(-1px); }
+        .game-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        /* ── Score bar ──────────────────────────────────────────── */
+        .score-board {
+            display: flex;
+            gap: 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            background: #1f2937;
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: 1px solid #374151;
+        }
         .score-val { color: #3b82f6; font-family: monospace; font-size: 1.2rem; }
-        
-        /* Forms and Ingest Elements */
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+
+        /* ── Recommendation form ────────────────────────────────── */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 10px;
+        }
         .form-group { display: flex; flex-direction: column; gap: 4px; }
         .form-group.full-width { grid-column: span 2; }
+
         label { font-size: 0.85rem; color: #9ca3af; font-weight: 500; }
-        input, textarea, select { background: #1f2937; border: 1px solid #374151; padding: 10px; border-radius: 6px; color: white; font-size: 0.95rem; }
+        input, textarea, select {
+            background: #1f2937;
+            border: 1px solid #374151;
+            padding: 10px;
+            border-radius: 6px;
+            color: white;
+            font-size: 0.95rem;
+        }
         input:focus, textarea:focus { outline: 2px solid #3b82f6; }
-        .submit-btn { grid-column: span 2; background: #3b82f6; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 1rem; margin-top: 6px; }
+
+        .submit-btn {
+            grid-column: span 2;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 6px;
+            transition: background 0.2s;
+        }
         .submit-btn:hover { background: #2563eb; }
-        
-        /* Leaderboard styling */
+        .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* ── Leaderboard ────────────────────────────────────────── */
         .leaderboard-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-        .leaderboard-item { display: flex; justify-content: space-between; background: #1f2937; padding: 10px 16px; border-radius: 6px; font-size: 0.95rem; align-items: center; }
-        .rank-badge { font-weight: 700; color: #f59e0b; font-family: monospace; margin-right: 8px; }
-        .streak-badge { background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 8px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
-        
-        /* Contributor Tag Vouch Badges */
-        .vouch-tag { font-size: 0.75rem; background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 3px 8px; border-radius: 4px; margin-top: 8px; font-weight: 600; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            background: #1f2937;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            align-items: center;
+        }
+        .rank-badge  { font-weight: 700; color: #f59e0b; font-family: monospace; margin-right: 8px; }
+        .streak-badge {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+
+        /* ── Vouch tag ──────────────────────────────────────────── */
+        .vouch-tag {
+            font-size: 0.75rem;
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-top: 8px;
+            font-weight: 600;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
         .vouch-tag span { color: #fff; }
+
+        /* ── Utility ────────────────────────────────────────────── */
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
@@ -68,240 +229,295 @@
         <div class="box">
             <h2>🎮 Higher or Lower Stream Challenge</h2>
             <div class="arena">
+
+                <!-- Card A — the known baseline -->
                 <div class="game-card" id="cardA">
                     <div class="vs-circle">VS</div>
-                    <div class="track-title" id="titleA">Loading...</div>
+                    <div class="track-title"  id="titleA">Loading…</div>
                     <div class="track-artist" id="artistA">Artist</div>
-                    <div>
-                        <div class="stream-display" id="streamsA">0</div>
-                        <div class="stream-label">Total Stream Count</div>
-                    </div>
+                    <div class="stream-display" id="streamsA">—</div>
+                    <div class="stream-label">Total Stream Count</div>
                     <div class="vouch-tag" id="vouchA">Vouched by: <span>System</span></div>
                 </div>
 
+                <!-- Card B — the mystery target -->
                 <div class="game-card active-comparison" id="cardB">
-                    <div class="track-title" id="titleB">Loading...</div>
+                    <div class="track-title"  id="titleB">Loading…</div>
                     <div class="track-artist" id="artistB">Artist</div>
-                    
-                    <div class="btn-group" id="actionGroup">
-                        <button class="game-btn btn-higher" onclick="processPlayerGuess('higher')">Higher ⬆️</button>
-                        <button class="game-btn btn-lower" onclick="processPlayerGuess('lower')">Lower ⬇️</button>
-                    </div>
-                    
-                    <div id="resultRevealBlock" style="display: none; text-align: center;">
-                        <div class="stream-display" id="streamsB">0</div>
+
+                    <!-- Hidden until the player guesses -->
+                    <div id="streamReveal" class="hidden">
+                        <div class="stream-display" id="streamsB">—</div>
                         <div class="stream-label">Total Stream Count</div>
                     </div>
+
+                    <!-- Buttons hidden after guess -->
+                    <div class="btn-group" id="actionGroup">
+                        <button class="game-btn btn-higher" id="btnHigher" onclick="processPlayerGuess('higher')">Higher ⬆️</button>
+                        <button class="game-btn btn-lower"  id="btnLower"  onclick="processPlayerGuess('lower')">Lower ⬇️</button>
+                    </div>
+
                     <div class="vouch-tag" id="vouchB">Vouched by: <span>System</span></div>
                 </div>
+
             </div>
         </div>
 
+        <!-- ── Recommendation form ─────────────────────────────────── -->
         <div class="box">
             <h2>📥 Recommend a Track to the Catalog</h2>
             <form id="recommendationForm" onsubmit="handleRecommendationSubmit(event)">
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Song Title</label>
-                        <input type="text" id="recTitle" required placeholder="e.g., Love Is A Lonely Sea">
+                        <input type="text" id="recTitle" required placeholder="e.g., Love Is Lonely">
                     </div>
                     <div class="form-group">
                         <label>Artist Name</label>
                         <input type="text" id="recArtist" required placeholder="e.g., NMIXX">
                     </div>
                     <div class="form-group">
-                        <label>Genre Block</label>
+                        <label>Genre</label>
                         <input type="text" id="recGenre" value="K-Pop">
                     </div>
                     <div class="form-group">
-                        <label>Initial Stream Volume (From MyStreamCount)</label>
-                        <input type="number" id="recStreams" required placeholder="e.g., 42105432">
+                        <label>
+                            Spotify Track URI
+                            <span style="color:#6b7280; font-weight:400;">
+                                — the ID at the end of the Spotify link, e.g. <em>1d7Ptw3qYcfpdLNL5REhtJ</em>
+                            </span>
+                        </label>
+                        <input type="text" id="recUri" placeholder="e.g., 1d7Ptw3qYcfpdLNL5REhtJ">
                     </div>
                     <div class="form-group">
-                        <label>Your Name / Submission Handle</label>
+                        <label>Fallback Stream Count <span style="color:#6b7280; font-weight:400;">(used only if URI is blank)</span></label>
+                        <input type="number" id="recStreams" placeholder="e.g., 42105432" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Your Name / Handle</label>
                         <input type="text" id="recContributedBy" required placeholder="e.g., Matthew">
                     </div>
-                    <div class="form-group">
-                        <label>Collector Notes / Vouch Context</label>
+                    <div class="form-group full-width">
+                        <label>Notes</label>
                         <input type="text" id="recNotes" placeholder="e.g., Title track from their latest single album">
                     </div>
-                    <button type="submit" class="submit-btn">Verify & Add to Game Pool</button>
+                    <button type="submit" class="submit-btn" id="recSubmitBtn">Verify &amp; Add to Game Pool</button>
                 </div>
             </form>
         </div>
     </div>
 
+    <!-- ── Side panel ──────────────────────────────────────────────── -->
     <div class="side-panel">
         <div class="box">
             <h2>🏆 Top All-Time Streaks</h2>
             <div id="leaderboardContainer" class="leaderboard-list">
-                <p style="color:#6b7280; font-size:0.9rem;">Initializing rankings data...</p>
+                <p style="color:#6b7280; font-size:0.9rem;">Initializing rankings…</p>
             </div>
         </div>
     </div>
 
     <script>
         const API_BASE = "http://127.0.0.1:8000/api";
-        
-        let streakCounter = 0;
-        let localHighScore = 0;
-        let trackAnchorA = null;
-        let trackTargetB = null;
 
-        // 1. Core State Ingestion Loop: Pulls a dynamic pairing matrix from database
+        let streakCounter  = 0;
+        let localHighScore = 0;
+        let trackAnchorA   = null;
+        let trackTargetB   = null;
+        let guessing       = false; // prevent double-clicks
+
+        // ── Helpers ──────────────────────────────────────────────────
+
+        function setButtons(enabled) {
+            document.getElementById("btnHigher").disabled = !enabled;
+            document.getElementById("btnLower").disabled  = !enabled;
+        }
+
+        // ── Fetch a fresh pair from the server ───────────────────────
+
         async function fetchNextGamePairing() {
             try {
                 const res = await fetch(`${API_BASE}/game/pair`);
                 if (!res.ok) {
-                    const errData = await res.json();
-                    alert(errData.detail);
+                    const err = await res.json();
+                    alert(err.detail || "Could not load a song pair.");
                     return;
                 }
                 const data = await res.json();
-                
                 trackAnchorA = data.song_a;
                 trackTargetB = data.song_b;
-                
                 renderGameUIState();
             } catch (err) {
-                console.error("Critical execution breakdown mapping pair metrics:", err);
+                console.error("fetchNextGamePairing failed:", err);
+            }
+        }
+
+        // Keep Song A, fetch only a new Song B (used on win)
+        async function fetchNextTargetSongOnly() {
+            try {
+                const res  = await fetch(`${API_BASE}/game/pair`);
+                const data = await res.json();
+
+                // Avoid accidentally showing the same song as the anchor
+                trackTargetB = (data.song_b.id === trackAnchorA.id) ? data.song_a : data.song_b;
+                renderGameUIState();
+            } catch (err) {
+                console.error("fetchNextTargetSongOnly failed:", err);
             }
         }
 
         function renderGameUIState() {
-            // Setup left-side structural baseline anchor
-            document.getElementById("titleA").innerText = trackAnchorA.title;
+            // Card A
+            document.getElementById("titleA").innerText  = trackAnchorA.title;
             document.getElementById("artistA").innerText = trackAnchorA.artist;
             document.getElementById("streamsA").innerText = trackAnchorA.stream_count.toLocaleString();
-            document.getElementById("vouchA").innerHTML = `Vouched by: <span>${trackAnchorA.recommended_by}</span>`;
-            
-            // Setup hidden target vector on right panel
-            document.getElementById("titleB").innerText = trackTargetB.title;
+            document.getElementById("vouchA").innerHTML  = `Vouched by: <span>${trackAnchorA.recommended_by}</span>`;
+
+            // Card B — hide streams until guess
+            document.getElementById("titleB").innerText  = trackTargetB.title;
             document.getElementById("artistB").innerText = trackTargetB.artist;
-            document.getElementById("vouchB").innerHTML = `Vouched by: <span>${trackTargetB.recommended_by}</span>`;
-            
-            // Toggle visual panels to hide streams of song B while playing
-            document.getElementById("actionGroup").style.display = "flex";
-            document.getElementById("resultRevealBlock").style.display = "none";
+            document.getElementById("streamsB").innerText = trackTargetB.stream_count.toLocaleString();
+            document.getElementById("vouchB").innerHTML  = `Vouched by: <span>${trackTargetB.recommended_by}</span>`;
+
+            // Reset card B visuals
+            document.getElementById("cardB").className = "game-card active-comparison";
+            document.getElementById("streamReveal").classList.add("hidden");
+            document.getElementById("actionGroup").classList.remove("hidden");
+            setButtons(true);
+
+            guessing = false;
         }
 
-        // 2. Evaluation Logic Engine Block
+        // ── Core guess logic ─────────────────────────────────────────
+
         async function processPlayerGuess(playerChoice) {
-            document.getElementById("actionGroup").style.display = "none";
-            const revealContainer = document.getElementById("resultRevealBlock");
-            
-            // Reveal Song B's true stream metrics
-            document.getElementById("streamsB").innerText = trackTargetB.stream_count.toLocaleString();
-            revealContainer.style.display = "block";
+            if (guessing) return;
+            guessing = true;
+            setButtons(false);
+
+            // Reveal Song B's stream count
+            document.getElementById("actionGroup").classList.add("hidden");
+            document.getElementById("streamReveal").classList.remove("hidden");
 
             const countA = trackAnchorA.stream_count;
             const countB = trackTargetB.stream_count;
-            
-            // Resolve boolean win condition bounds
-            const isHigherWin = (playerChoice === 'higher' && countB >= countA);
-            const isLowerWin = (playerChoice === 'lower' && countB <= countA);
 
-            await new Promise(resolve => setTimeout(resolve, 1200)); // Short dramatic pause
+            const isCorrect =
+                (playerChoice === "higher" && countB >= countA) ||
+                (playerChoice === "lower"  && countB <= countA);
 
-            if (isHigherWin || isLowerWin) {
-                // WIN STATE
+            // Flash correct / incorrect border
+            document.getElementById("cardB").classList.add(isCorrect ? "correct" : "incorrect");
+
+            // Short dramatic pause
+            await new Promise(resolve => setTimeout(resolve, 1200));
+
+            if (isCorrect) {
                 streakCounter++;
                 if (streakCounter > localHighScore) {
                     localHighScore = streakCounter;
                     document.getElementById("highScore").innerText = localHighScore;
                 }
                 document.getElementById("currentStreak").innerText = streakCounter;
-                
-                // Mathematical optimization chain: Song B cascades to become the new baseline Anchor A
+
+                // Song B becomes the new anchor
                 trackAnchorA = trackTargetB;
                 fetchNextTargetSongOnly();
+
             } else {
-                // LOSS STATE
-                alert(`❌ Incorrect! ${trackTargetB.title} had ${countB.toLocaleString()} streams compared to ${trackAnchorA.title}'s ${countA.toLocaleString()}.`);
-                
+                alert(
+                    `❌ Incorrect!\n` +
+                    `${trackTargetB.title} had ${countB.toLocaleString()} streams\n` +
+                    `vs ${trackAnchorA.title}'s ${countA.toLocaleString()}.`
+                );
+
                 if (streakCounter > 0) {
                     await promptLeaderboardSubmission(streakCounter);
                 }
-                
+
                 streakCounter = 0;
-                document.getElementById("currentStreak").innerText = streakCounter;
-                fetchNextGamePairing(); // Fully reset both boards
+                document.getElementById("currentStreak").innerText = 0;
+                fetchNextGamePairing();
             }
         }
 
-        // Mid-tier fetch routine: optimization shift to prevent double loading
-        async function fetchNextTargetSongOnly() {
-            try {
-                const res = await fetch(`${API_BASE}/game/pair`);
-                const data = await res.json();
-                
-                // If it picked the same song we are carrying as anchor, re-shuffle target vectors safely
-                trackTargetB = (data.song_b.id === trackAnchorA.id) ? data.song_a : data.song_b;
-                renderGameUIState();
-            } catch (err) {
-                console.error("Secondary cascade mapping failed:", err);
-            }
-        }
+        // ── Recommendation form ──────────────────────────────────────
 
-        // 3. User Endorsement Pipeline Ingestion
         async function handleRecommendationSubmit(event) {
             event.preventDefault();
-            
+            const btn = document.getElementById("recSubmitBtn");
+            btn.disabled = true;
+            btn.textContent = "Submitting…";
+
             const payload = {
-                title: document.getElementById("recTitle").value,
-                artist: document.getElementById("recArtist").value,
-                genre: document.getElementById("recGenre").value,
-                stream_count: parseInt(document.getElementById("recStreams").value),
-                recommended_by: document.getElementById("recContributedBy").value,
-                notes: document.getElementById("recNotes").value
+                title:          document.getElementById("recTitle").value.trim(),
+                artist:         document.getElementById("recArtist").value.trim(),
+                genre:          document.getElementById("recGenre").value.trim(),
+                spotify_uri:    document.getElementById("recUri").value.trim(),
+                stream_count:   parseInt(document.getElementById("recStreams").value) || 0,
+                recommended_by: document.getElementById("recContributedBy").value.trim(),
+                notes:          document.getElementById("recNotes").value.trim(),
             };
 
             try {
                 const res = await fetch(`${API_BASE}/game/recommend`, {
-                    method: "POST",
+                    method:  "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload)
+                    body:    JSON.stringify(payload),
                 });
-                
+
                 if (res.ok) {
-                    alert("🎉 Recommendation successfully validated and added to the gaming catalog!");
+                    const data = await res.json();
+                    const countMsg = data.stream_count
+                        ? ` Live count: ${data.stream_count.toLocaleString()} streams.`
+                        : "";
+                    alert(`🎉 Track added to the catalog!${countMsg}`);
                     document.getElementById("recommendationForm").reset();
-                    // If playing was locked from empty tables, kick off a new game vector initialization
+
+                    // Kick off a game if the catalog was previously empty
                     if (!trackAnchorA) fetchNextGamePairing();
                 } else {
-                    alert("❌ Ingestion rejection error from endpoint parsing framework.");
+                    const err = await res.json();
+                    alert(`❌ Error: ${err.detail || "Could not add track."}`);
                 }
             } catch (err) {
-                console.error("Form handling network exception:", err);
+                console.error("Recommendation submit error:", err);
+                alert("❌ Could not reach the server.");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Verify & Add to Game Pool";
             }
         }
 
-        // 4. Leaderboard Sync Matrix Management
+        // ── Leaderboard ──────────────────────────────────────────────
+
         async function promptLeaderboardSubmission(finalScore) {
-            const username = prompt(`🎮 Game Over! You achieved a streak of ${finalScore}! Enter your handle for the leaderboard rankings column:`);
-            if (!username || username.trim() === "") return;
+            const username = prompt(
+                `🎮 Game Over! Streak: ${finalScore}\nEnter your handle for the leaderboard:`
+            );
+            if (!username || !username.trim()) return;
 
             try {
                 await fetch(`${API_BASE}/game/leaderboard`, {
-                    method: "POST",
+                    method:  "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ username: username.trim(), high_score: finalScore })
+                    body:    JSON.stringify({ username: username.trim(), high_score: finalScore }),
                 });
                 loadLeaderboardData();
             } catch (err) {
-                console.error("Leaderboard transmission trace exception:", err);
+                console.error("Leaderboard submit error:", err);
             }
         }
 
         async function loadLeaderboardData() {
             const container = document.getElementById("leaderboardContainer");
             try {
-                const res = await fetch(`${API_BASE}/game/leaderboard`);
+                const res    = await fetch(`${API_BASE}/game/leaderboard`);
                 const scores = await res.json();
-                
+
                 container.innerHTML = "";
-                if (scores.length === 0) {
-                    container.innerHTML = "<p style='color:#6b7280; font-size:0.9rem;'>Leaderboard empty. Be the first to establish a streak rank record!</p>";
+                if (!scores.length) {
+                    container.innerHTML = "<p style='color:#6b7280;font-size:0.9rem;'>No scores yet — be the first!</p>";
                     return;
                 }
 
@@ -311,18 +527,18 @@
                     item.innerHTML = `
                         <div>
                             <span class="rank-badge">#${index + 1}</span>
-                            <span style="color:#fff; font-weight:600;">${row.username}</span>
+                            <span style="color:#fff;font-weight:600;">${row.username}</span>
                         </div>
                         <span class="streak-badge">${row.high_score} wins</span>
                     `;
                     container.appendChild(item);
                 });
             } catch (err) {
-                console.error("Rankings mapping processing error:", err);
+                console.error("Leaderboard load error:", err);
             }
         }
 
-        // Initial Lifecycle Execution Hooks
+        // ── Boot ─────────────────────────────────────────────────────
         fetchNextGamePairing();
         loadLeaderboardData();
     </script>
