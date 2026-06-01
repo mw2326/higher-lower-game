@@ -16,7 +16,7 @@ DB_FILE = "game.db"
 MSC_BASE = "https://www.mystreamcount.com/track/"
 
 # ---------------------------------------------------------------------- #
-# Database helpers                                                         #
+# Database helpers                                                       #
 # ---------------------------------------------------------------------- #
 
 def get_db():
@@ -56,9 +56,32 @@ def init_db_structures():
         )
     """)
 
+    # ── PERMANENT ARTIST VS POET PURGE GATES ──────────────────────────────
+    fake_ive_tracks = [
+        'Fresh', 'Medicine', 'Break Away', 'Sincerely Me', "Leavin'", 'Kids Again',
+        'Somewhere Else', 'Everything Must Go', 'Break Away (Piano Version)', 
+        'Leaving in the Morning (feat. Blackbear)', 'Stay', 'Wait for You', 
+        'Anything at All', 'The Remedy', 'Different People (feat. Devyn De Loera)', 
+        'Whiskey Problems', 'Let You Go', 'Remember This', 'The Best That You Can Be', 
+        "Leavin' in the Morning", 'Different People', 'Car Crash', 'Favorite Fix', 
+        'Unconscious Reality', 'Damn Rough Night', "We're All The Same", 
+        'So Much I Never Said', 'Miserably Loving You', 'Broke But Not Broken', 
+        "He's Just Not Me", 'Alive', 'Giving Yourself Away', 'Break', 'Hang Around', 
+        "Where I'm Gonna Be", 'Dreaming My Way to You', 'Rescue', 'To Hell With The Letdown', 
+        'Assurance Closure', 'Lisa Marie', 'Infallible Remedy', 'All In'
+    ]
+    
+    cursor.execute("""
+        DELETE FROM songs 
+        WHERE artist = 'IVE' AND title IN ({})
+    """.format(','.join('?' for _ in fake_ive_tracks)), fake_ive_tracks)
+    
+    if cursor.rowcount > 0:
+        print(f"🧹 Startup Shield: Instantly neutralized {cursor.rowcount} corrupted rock tracks from the IVE pool.")
+        conn.commit()
+    # ──────────────────────────────────────────────────────────────────────
+
     # ── Schema migrations ──────────────────────────────────────────────────
-    # Safely add any columns that may be missing from an older game.db on disk.
-    # We check existing columns first so this is safe to run on every startup.
     cursor.execute("PRAGMA table_info(songs)")
     existing_columns = {row[1] for row in cursor.fetchall()}
 
@@ -66,6 +89,7 @@ def init_db_structures():
         ("spotify_uri",    "TEXT    DEFAULT ''"),
         ("recommended_by", "TEXT    DEFAULT 'System Core'"),
         ("notes",          "TEXT    DEFAULT ''"),
+        ("last_updated",   "TEXT    DEFAULT '2026-05-31T00:00:00'")
     ]
     for col_name, col_def in migrations:
         if col_name not in existing_columns:
@@ -78,16 +102,11 @@ def init_db_structures():
 
 
 # ---------------------------------------------------------------------- #
-# Stream scraper                                                           #
+# Stream scraper                                                         #
 # ---------------------------------------------------------------------- #
 
 async def fetch_stream_count(spotify_uri: str, client: httpx.AsyncClient):
-    """
-    Scrape the live stream count for a track from mystreamcount.com.
-
-    URL pattern: https://www.mystreamcount.com/track/{spotify_uri}
-    The count is rendered server-side, so a plain GET is enough.
-    """
+    """Scrape the live stream count for a track from mystreamcount.com."""
     if not spotify_uri:
         return None
 
@@ -101,14 +120,11 @@ async def fetch_stream_count(spotify_uri: str, client: httpx.AsyncClient):
 
     soup = BeautifulSoup(response.text, "html.parser")
 
-    # The stream count appears as plain text — a large integer with comma separators.
-    # We scan all text nodes for something that looks like a stream count (7+ digits).
     for tag in soup.find_all(string=True):
         text = tag.strip().replace(",", "")
         if text.isdigit() and len(text) >= 7:
             return int(text)
 
-    # Fallback: regex sweep over raw page text
     match = re.search(r"([\d]{1,3}(?:,[\d]{3})+)\s*streams", response.text, re.IGNORECASE)
     if match:
         return int(match.group(1).replace(",", ""))
@@ -117,16 +133,12 @@ async def fetch_stream_count(spotify_uri: str, client: httpx.AsyncClient):
 
 
 # ---------------------------------------------------------------------- #
-# Hourly background updater                                                #
+# Hourly background updater                                              #
 # ---------------------------------------------------------------------- #
 
 async def hourly_stream_updater():
-    """
-    Every hour, fetch real stream counts from mystreamcount.com for every
-    song in the catalog that has a spotify_uri set.
-    Songs without a URI are skipped (their counts stay as seeded).
-    """
-    await asyncio.sleep(5)  # Let the app finish starting up first
+    """Every hour, fetch real stream counts for songs with a spotify_uri."""
+    await asyncio.sleep(5)
 
     while True:
         print(f"\n⏰ [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Starting hourly stream refresh...")
@@ -169,7 +181,7 @@ async def hourly_stream_updater():
                         else:
                             print(f"   ❌ Could not fetch: {song['title']} (uri={song['spotify_uri']})")
 
-                        await asyncio.sleep(2)  # Be polite — don't hammer the site
+                        await asyncio.sleep(2)
 
                 print(f"   🏁 Refresh complete. Updated {updated}/{len(songs)} tracks.")
 
@@ -180,7 +192,7 @@ async def hourly_stream_updater():
 
 
 # ---------------------------------------------------------------------- #
-# App lifecycle                                                             #
+# App lifecycle                                                          #
 # ---------------------------------------------------------------------- #
 
 @asynccontextmanager
@@ -203,15 +215,15 @@ app.add_middleware(
 
 
 # ---------------------------------------------------------------------- #
-# Pydantic models                                                          #
+# Pydantic models                                                        #
 # ---------------------------------------------------------------------- #
 
 class TrackRecommendationRequest(BaseModel):
     title: str
     artist: str
     genre: str = "K-Pop"
-    spotify_uri: str = ""   # e.g. "1d7Ptw3qYcfpdLNL5REhtJ"
-    stream_count: int = 0   # fallback if no URI; scraper will update if URI given
+    spotify_uri: str = ""
+    stream_count: int = 0
     recommended_by: str
     notes: str = ""
 
@@ -222,7 +234,7 @@ class ScoreSubmissionRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------- #
-# Endpoints                                                                #
+# Endpoints                                                              #
 # ---------------------------------------------------------------------- #
 
 @app.get("/")
@@ -247,11 +259,13 @@ def search_catalog(q: str = ""):
 
 @app.get("/api/game/pair")
 def get_game_pair():
-    """Return two distinct random songs for a Higher-or-Lower round."""
+    """Return two distinct random songs with their 'last_updated' timestamp."""
     conn = get_db()
     cursor = conn.cursor()
+    
+    # 🌟 ADDED last_updated HERE SO THE FRONTEND CAN ACCESS IT 🌟
     cursor.execute(
-        "SELECT id, title, artist, genre, spotify_uri, stream_count, recommended_by, notes "
+        "SELECT id, title, artist, genre, spotify_uri, stream_count, recommended_by, notes, last_updated "
         "FROM songs ORDER BY RANDOM() LIMIT 2"
     )
     rows = cursor.fetchall()
@@ -260,7 +274,7 @@ def get_game_pair():
     if len(rows) < 2:
         raise HTTPException(
             status_code=400,
-            detail="Not enough songs in the catalog yet. Add at least 2 tracks via the recommendation form!",
+            detail="Not enough songs in the catalog yet.",
         )
 
     return {"song_a": dict(rows[0]), "song_b": dict(rows[1])}
@@ -268,10 +282,6 @@ def get_game_pair():
 
 @app.post("/api/game/recommend")
 async def recommend_new_track(req: TrackRecommendationRequest):
-    """
-    Add a community-submitted track to the catalog.
-    If a spotify_uri is provided, immediately fetch the live stream count.
-    """
     print(f"\n📥 New recommendation from: {req.recommended_by}")
 
     initial_count = max(0, req.stream_count)
@@ -292,8 +302,6 @@ async def recommend_new_track(req: TrackRecommendationRequest):
             if live_count is not None:
                 initial_count = live_count
                 print(f"   🎧 Live count fetched: {live_count:,}")
-            else:
-                print("   ⚠️  Could not fetch live count; using submitted value.")
 
     conn = get_db()
     try:
@@ -317,9 +325,7 @@ async def recommend_new_track(req: TrackRecommendationRequest):
             ),
         )
         conn.commit()
-        new_id = cursor.lastrowid
-        print(f"   ✅ Track added with ID {new_id}")
-        return {"status": "success", "id": new_id, "stream_count": initial_count}
+        return {"status": "success", "id": cursor.lastrowid, "stream_count": initial_count}
     except Exception as db_err:
         raise HTTPException(status_code=500, detail=f"Database error: {db_err}")
     finally:
