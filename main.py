@@ -1,11 +1,8 @@
 import os
 import re
 import sqlite3
-import asyncio
 from datetime import datetime
 
-import httpx
-from bs4 import BeautifulSoup
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -13,7 +10,6 @@ from pydantic import BaseModel
 from contextlib import asynccontextmanager
 
 DB_FILE = "game.db"
-MSC_BASE = "https://www.mystreamcount.com/track/"
 
 # ---------------------------------------------------------------------- #
 # Database helpers                                                       #
@@ -102,105 +98,14 @@ def init_db_structures():
 
 
 # ---------------------------------------------------------------------- #
-# Stream scraper                                                         #
-# ---------------------------------------------------------------------- #
-
-async def fetch_stream_count(spotify_uri: str, client: httpx.AsyncClient):
-    """Scrape the live stream count for a track from mystreamcount.com."""
-    if not spotify_uri:
-        return None
-
-    url = f"{MSC_BASE}{spotify_uri}"
-    try:
-        response = await client.get(url, timeout=15)
-        response.raise_for_status()
-    except httpx.HTTPError as exc:
-        print(f"   ⚠️  HTTP error fetching {url}: {exc}")
-        return None
-
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    for tag in soup.find_all(string=True):
-        text = tag.strip().replace(",", "")
-        if text.isdigit() and len(text) >= 7:
-            return int(text)
-
-    match = re.search(r"([\d]{1,3}(?:,[\d]{3})+)\s*streams", response.text, re.IGNORECASE)
-    if match:
-        return int(match.group(1).replace(",", ""))
-
-    return None
-
-
-# ---------------------------------------------------------------------- #
-# Hourly background updater                                              #
-# ---------------------------------------------------------------------- #
-
-async def hourly_stream_updater():
-    """Every hour, fetch real stream counts for songs with a spotify_uri."""
-    await asyncio.sleep(5)
-
-    while True:
-        print(f"\n⏰ [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Starting hourly stream refresh...")
-
-        try:
-            conn = get_db()
-            cursor = conn.cursor()
-            cursor.execute("SELECT id, title, artist, spotify_uri FROM songs WHERE spotify_uri != ''")
-            songs = cursor.fetchall()
-            conn.close()
-
-            if not songs:
-                print("   ⚠️  No songs with a spotify_uri found — nothing to scrape.")
-            else:
-                async with httpx.AsyncClient(
-                    headers={
-                        "User-Agent": (
-                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                            "AppleWebKit/537.36 (KHTML, like Gecko) "
-                            "Chrome/124.0.0.0 Safari/537.36"
-                        ),
-                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                        "Accept-Language": "en-US,en;q=0.5",
-                    },
-                    follow_redirects=True,
-                ) as client:
-                    updated = 0
-                    for song in songs:
-                        count = await fetch_stream_count(song["spotify_uri"], client)
-                        if count is not None:
-                            conn = get_db()
-                            conn.execute(
-                                "UPDATE songs SET stream_count = ?, last_updated = ? WHERE id = ?",
-                                (count, datetime.utcnow().isoformat(), song["id"]),
-                            )
-                            conn.commit()
-                            conn.close()
-                            updated += 1
-                            print(f"   ✅ {song['artist']} — {song['title']}: {count:,}")
-                        else:
-                            print(f"   ❌ Could not fetch: {song['title']} (uri={song['spotify_uri']})")
-
-                        await asyncio.sleep(2)
-
-                print(f"   🏁 Refresh complete. Updated {updated}/{len(songs)} tracks.")
-
-        except Exception as err:
-            print(f"   ❌ Hourly updater error: {err}")
-
-        await asyncio.sleep(3600)
-
-
-# ---------------------------------------------------------------------- #
 # App lifecycle                                                          #
 # ---------------------------------------------------------------------- #
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Setup database on boot, completely omitting any background scrape loops
     init_db_structures()
-    updater_task = asyncio.create_task(hourly_stream_updater())
     yield
-    updater_task.cancel()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -262,8 +167,6 @@ def get_game_pair():
     """Return two distinct random songs with their 'last_updated' timestamp."""
     conn = get_db()
     cursor = conn.cursor()
-    
-    # 🌟 ADDED last_updated HERE SO THE FRONTEND CAN ACCESS IT 🌟
     cursor.execute(
         "SELECT id, title, artist, genre, spotify_uri, stream_count, recommended_by, notes, last_updated "
         "FROM songs ORDER BY RANDOM() LIMIT 2"
@@ -282,26 +185,9 @@ def get_game_pair():
 
 @app.post("/api/game/recommend")
 async def recommend_new_track(req: TrackRecommendationRequest):
+    """Inserts community additions natively using user-submitted metrics."""
     print(f"\n📥 New recommendation from: {req.recommended_by}")
-
     initial_count = max(0, req.stream_count)
-    if req.spotify_uri.strip():
-        async with httpx.AsyncClient(
-            headers={
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/124.0.0.0 Safari/537.36"
-                ),
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.5",
-            },
-            follow_redirects=True,
-        ) as client:
-            live_count = await fetch_stream_count(req.spotify_uri.strip(), client)
-            if live_count is not None:
-                initial_count = live_count
-                print(f"   🎧 Live count fetched: {live_count:,}")
 
     conn = get_db()
     try:

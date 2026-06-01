@@ -48,7 +48,7 @@
             padding: 30px 20px;
             text-align: center;
             /* Fixed height so the card doesn't jump when we reveal streams */
-            min-height: 260px;
+            min-height: 280px;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -67,6 +67,9 @@
 
         .track-title  { font-size: 1.5rem; font-weight: bold; color: #fff; margin: 0; }
         .track-artist { font-size: 1.05rem; color: #9ca3af; margin: 0; font-weight: 500; }
+        
+        /* Styled timestamp for the layout */
+        .track-timestamp { font-size: 0.78rem; color: #6b7280; font-style: italic; margin-top: 2px; }
 
         .stream-display {
             font-size: 1.8rem;
@@ -180,27 +183,25 @@
             <h2>Higher or Lower Stream Challenge</h2>
             <div class="arena">
 
-                <!-- Card A — the known baseline -->
                 <div class="game-card" id="cardA">
                     <div class="vs-circle">VS</div>
                     <div class="track-title"  id="titleA">Loading…</div>
                     <div class="track-artist" id="artistA">Artist</div>
+                    <div class="track-timestamp" id="timestampA">Scraped: —</div>
                     <div class="stream-display" id="streamsA">—</div>
                     <div class="stream-label">Total Stream Count</div>
                 </div>
 
-                <!-- Card B — the mystery target -->
                 <div class="game-card active-comparison" id="cardB">
                     <div class="track-title"  id="titleB">Loading…</div>
                     <div class="track-artist" id="artistB">Artist</div>
+                    <div class="track-timestamp" id="timestampB">Scraped: —</div>
 
-                    <!-- Hidden until the player guesses -->
                     <div id="streamReveal" class="hidden">
                         <div class="stream-display" id="streamsB">—</div>
                         <div class="stream-label">Total Stream Count</div>
                     </div>
 
-                    <!-- Buttons hidden after guess -->
                     <div class="btn-group" id="actionGroup">
                         <button class="game-btn btn-higher" id="btnHigher" onclick="processPlayerGuess('higher')">Higher ⬆️</button>
                         <button class="game-btn btn-lower"  id="btnLower"  onclick="processPlayerGuess('lower')">Lower ⬇️</button>
@@ -209,8 +210,8 @@
 
             </div>
         </div>
+    </div>
 
-    <!-- ── Side panel ──────────────────────────────────────────────── -->
     <div class="side-panel">
         <div class="box">
             <h2>🏆 Top All-Time Streaks</h2>
@@ -234,6 +235,18 @@
         function setButtons(enabled) {
             document.getElementById("btnHigher").disabled = !enabled;
             document.getElementById("btnLower").disabled  = !enabled;
+        }
+
+        // Formats database ISO strings ('2026-06-01T12:58:07') to local string metrics
+        function formatScrapeDate(isoString) {
+            if (!isoString) return "Baseline Seed";
+            try {
+                const date = new Date(isoString);
+                // Return format: MM/DD/YYYY, HH:MM AM/PM
+                return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            } catch (e) {
+                return "Baseline Seed";
+            }
         }
 
         // ── Fetch a fresh pair from the server ───────────────────────
@@ -273,11 +286,13 @@
             // Card A
             document.getElementById("titleA").innerText  = trackAnchorA.title;
             document.getElementById("artistA").innerText = trackAnchorA.artist;
+            document.getElementById("timestampA").innerText = `Scraped: ${formatScrapeDate(trackAnchorA.last_updated)}`;
             document.getElementById("streamsA").innerText = trackAnchorA.stream_count.toLocaleString();
 
             // Card B — hide streams until guess
             document.getElementById("titleB").innerText  = trackTargetB.title;
             document.getElementById("artistB").innerText = trackTargetB.artist;
+            document.getElementById("timestampB").innerText = `Scraped: ${formatScrapeDate(trackTargetB.last_updated)}`;
             document.getElementById("streamsB").innerText = trackTargetB.stream_count.toLocaleString();
 
             // Reset card B visuals
