@@ -111,23 +111,6 @@ The server runs at `http://127.0.0.1:8000`. Open that in your browser and the ga
 | `POST` | `/api/game/leaderboard` | Submits a score `{ username, high_score }` |
 | `GET` | `/api/search?q={query}` | Searches the catalog by title, artist, or submitter |
 
-### Example: Add a track
-
-```bash
-curl -X POST http://127.0.0.1:8000/api/game/recommend \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Supernova",
-    "artist": "aespa",
-    "spotify_uri": "5HCyHkGDMCbwrSMtDYDNSk",
-    "recommended_by": "Matthew"
-  }'
-```
-
-If a `spotify_uri` is provided, the server fetches the live stream count from MyStreamCount immediately and returns it in the response.
-
----
-
 ## Adding New Artists
 
 `populate_spotify_uris.py` has a hardcoded `ARTIST_IDS` dictionary that maps artist names to their Spotify artist IDs. This ensures short or common names like **IVE** don't get mismatched. If your catalog includes an artist not already in the list, grab their ID from their Spotify URL:
