@@ -1,27 +1,34 @@
-# 🎵 Music Recommender
+# 🎵 Higher or Lower: K-Pop Stream Edition
 
-A full-stack music recommendation system powered by **Neural Collaborative Filtering (NCF)**. Users can search for songs, log listening history, and receive personalized song recommendations — all served through a FastAPI backend and a plain HTML/JS frontend.
+A web-based guessing game where you compare real Spotify stream counts for K-pop tracks. Is **LOVE DIVE** by IVE streamed more or less than **Attention** by NewJeans? Guess correctly to build your streak — one wrong answer and it's over.
+
+Stream counts are scraped live from [MyStreamCount](https://www.mystreamcount.com) every hour, so the numbers are always current.
 
 ---
 
 ## How It Works
 
-The system learns from user listening history stored in a local SQLite database. A PyTorch neural network maps users and songs into embedding vectors, concatenates them, and passes them through fully connected layers to predict a preference score between 0 and 1. At inference time, the top 5 unheard songs with the highest predicted scores are returned.
+Two songs are shown side by side. The left card reveals its stream count; the right card hides it. You guess **Higher** or **Lower**. If you're right, the right card becomes the new baseline and a new mystery song appears. Get it wrong and your streak resets — but you can submit your score to the leaderboard first.
 
-If the model hasn't been trained yet, the API falls back to ranking songs by their Spotify popularity score.
+Anyone can recommend new tracks to the catalog through the in-game form. Paste a Spotify track URI and the backend fetches the live stream count immediately.
 
 ---
 
 ## Project Structure
 
 ```
-music-recommender/
-├── main.py                   # FastAPI backend — search, listen logging, recommendations
-├── train.py                  # PyTorch training script — produces model.pth
-├── seed_spotify_complete.py  # Seeds the SQLite database with Spotify track data
-├── index.html                # Frontend UI (search, log listens, view recommendations)
-├── music_v2.db               # SQLite database (generated at runtime)
-└── model.pth                 # Saved model weights (generated after training)
+higher-lower-game/
+├── main.py                       # FastAPI backend — game endpoints, scraper, leaderboard
+├── index.html                    # Frontend — game UI, recommendation form, leaderboard
+├── pipeline/
+│   ├── migrate_and_seed.py       # Copies songs from music_v2.db into game.db
+│   ├── populate_spotify_uris.py  # Looks up Spotify track URIs for every song
+│   ├── init_game_db.py           # Creates fresh game.db schema from scratch
+│   ├── audit.py                  # Checks DB health — missing URIs, zero counts, etc.
+│   └── verify.py                 # Spot-checks scraped stream counts against live site
+├── reset_to_baseline.py          # Resets game.db to the committed baseline snapshot
+├── game_baseline.db              # Clean committed snapshot used by reset script
+└── .gitignore
 ```
 
 ---
@@ -29,10 +36,10 @@ music-recommender/
 ## Tech Stack
 
 - **Backend:** FastAPI, Uvicorn
-- **ML:** PyTorch (Neural Collaborative Filtering)
+- **Scraping:** httpx, BeautifulSoup4
 - **Database:** SQLite
-- **Frontend:** HTML / JavaScript
-- **Data Source:** Spotify API (via seeding script)
+- **Frontend:** HTML / CSS / Vanilla JavaScript
+- **Data sources:** Spotify Web API (URIs), MyStreamCount (live stream counts)
 
 ---
 
@@ -41,38 +48,56 @@ music-recommender/
 ### 1. Install dependencies
 
 ```bash
-pip install fastapi uvicorn torch pydantic spotipy
+pip install fastapi uvicorn httpx beautifulsoup4 requests
 ```
 
-### 2. Seed the database
+### 2. Set up the database
 
-Populate the local SQLite database with song data from Spotify:
+If you're starting fresh from the baseline snapshot:
 
 ```bash
-python seed_spotify_complete.py
+python reset_to_baseline.py
 ```
 
-### 3. Train the model
-
-Train the NCF model on listening history. This generates `model.pth`:
+Or if you're migrating from an existing `music_v2.db`:
 
 ```bash
-python train.py
+python pipeline/migrate_and_seed.py
 ```
 
-> **Note:** You need some listening history in the database before training is meaningful. Log a few listens via the API or frontend first.
+### 3. Populate Spotify URIs
 
-### 4. Start the API server
+Open `pipeline/populate_spotify_uris.py` and paste your Spotify API credentials at the top (get them free at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard)):
+
+```python
+SPOTIFY_CLIENT_ID     = "your_client_id"
+SPOTIFY_CLIENT_SECRET = "your_client_secret"
+```
+
+Then run it:
+
+```bash
+python pipeline/populate_spotify_uris.py
+```
+
+This looks up every song in the catalog and saves its Spotify track ID to the database. Songs with a URI will have their stream counts updated by the hourly scraper.
+
+### 4. Start the server
 
 ```bash
 python main.py
 ```
 
-The server runs at `http://127.0.0.1:8000`.
+The server runs at `http://127.0.0.1:8000`. Open that in your browser and the game loads automatically.
 
-### 5. Open the frontend
+5 seconds after startup the first scrape cycle fires and pulls live stream counts for all songs that have a Spotify URI. You'll see the results logged in the terminal:
 
-Open `index.html` in your browser. Make sure the backend is running first.
+```
+⏰ [2026-05-31 16:00:00] Starting hourly stream refresh...
+   ✅ IVE — LOVE DIVE: 312,847,201
+   ✅ NewJeans — Attention: 287,104,932
+   🏁 Refresh complete. Updated 142/142 tracks.
+```
 
 ---
 
@@ -80,42 +105,63 @@ Open `index.html` in your browser. Make sure the backend is running first.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/search?q={query}` | Search songs by title or artist |
-| `POST` | `/api/listen` | Log a listen event `{ user_id, song_id }` |
-| `GET` | `/api/recommendations/{user_id}` | Get top 5 personalized recommendations |
+| `GET` | `/api/game/pair` | Returns two random songs for a round |
+| `POST` | `/api/game/recommend` | Adds a new track to the catalog |
+| `GET` | `/api/game/leaderboard` | Returns the top 10 all-time streaks |
+| `POST` | `/api/game/leaderboard` | Submits a score `{ username, high_score }` |
+| `GET` | `/api/search?q={query}` | Searches the catalog by title, artist, or submitter |
 
-### Example: Log a listen
+### Example: Add a track
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/listen \
+curl -X POST http://127.0.0.1:8000/api/game/recommend \
   -H "Content-Type: application/json" \
-  -d '{"user_id": 1, "song_id": 42}'
+  -d '{
+    "title": "Supernova",
+    "artist": "aespa",
+    "spotify_uri": "5HCyHkGDMCbwrSMtDYDNSk",
+    "recommended_by": "Matthew"
+  }'
 ```
 
-### Example: Get recommendations
+If a `spotify_uri` is provided, the server fetches the live stream count from MyStreamCount immediately and returns it in the response.
+
+---
+
+## Adding New Artists
+
+`populate_spotify_uris.py` has a hardcoded `ARTIST_IDS` dictionary that maps artist names to their Spotify artist IDs. This ensures short or common names like **IVE** don't get mismatched. If your catalog includes an artist not already in the list, grab their ID from their Spotify URL:
+
+```
+open.spotify.com/artist/{ARTIST_ID}
+```
+
+And add it to the dict:
+
+```python
+ARTIST_IDS = {
+    "IVE": "6RHTUrRF63xao58xh9FXYJ",
+    "Your Artist": "their_spotify_artist_id",
+    ...
+}
+```
+
+---
+
+## Resetting the Database
+
+To wipe `game.db` and restore the committed baseline:
 
 ```bash
-curl http://127.0.0.1:8000/api/recommendations/1
+python reset_to_baseline.py
 ```
 
-Response includes a `recs` array and an `engine` field indicating whether the live PyTorch model or the popularity-based fallback was used.
+To start completely from scratch:
 
----
-
-## Model Architecture
-
-The `NeuralCollaborativeFiltering` model consists of:
-
-- **User Embedding** — maps user IDs to 16-dimensional vectors
-- **Song Embedding** — maps song IDs to 16-dimensional vectors
-- **Fully Connected Layers** — `32 → ReLU → 16 → ReLU → 1 → Sigmoid`
-
-Training uses **Binary Cross Entropy loss** and the **Adam optimizer** over 10 epochs with a batch size of 64.
-
----
-
-## Notes
-
-- User IDs are arbitrary integers — just pick a consistent ID per user session.
-- The database and model file are excluded from version control via `.gitignore`.
-- Re-run `train.py` any time to retrain on updated listening history.
+```bash
+del game.db                              # Windows
+python pipeline/init_game_db.py
+python pipeline/migrate_and_seed.py
+python pipeline/populate_spotify_uris.py
+python main.py
+```
