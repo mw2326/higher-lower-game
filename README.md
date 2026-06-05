@@ -1,4 +1,4 @@
-# 🎵 Higher or Lower: K-Pop Stream Edition
+# Higher or Lower: K-Pop Stream Edition
 
 A web-based guessing game where you compare real Spotify stream counts for K-pop tracks.
 
