@@ -1,8 +1,8 @@
 # 🎵 Higher or Lower: K-Pop Stream Edition
 
-A web-based guessing game where you compare real Spotify stream counts for K-pop tracks. Is **LOVE DIVE** by IVE streamed more or less than **Attention** by NewJeans? Guess correctly to build your streak — one wrong answer and it's over.
+A web-based guessing game where you compare real Spotify stream counts for K-pop tracks.
 
-Stream counts are scraped live from [MyStreamCount](https://www.mystreamcount.com) every hour, so the numbers are always current.
+Stream counts are scraped from [MyStreamCount](https://www.mystreamcount.com).
 
 ---
 
@@ -22,8 +22,8 @@ higher-lower-game/
 ├── index.html                    # Frontend — game UI, recommendation form, leaderboard
 ├── pipeline/
 │   ├── migrate_and_seed.py       # Copies songs from music_v2.db into game.db
-│   ├── populate_spotify_uris.py  # Looks up Spotify track URIs for every song
-│   ├── init_game_db.py           # Creates fresh game.db schema from scratch
+│   ├── scrape_streams_safely.py  # Safely scrapes missing Spotify stream counts
+│   ├── seed_spotify_complete.py  # Builds a clean SQLite database of complete artist discographies
 │   ├── audit.py                  # Checks DB health — missing URIs, zero counts, etc.
 │   └── verify.py                 # Spot-checks scraped stream counts against live site
 ├── reset_to_baseline.py          # Resets game.db to the committed baseline snapshot
