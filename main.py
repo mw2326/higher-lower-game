@@ -146,6 +146,14 @@ class ScoreSubmissionRequest(BaseModel):
 def read_root():
     return FileResponse("index.html")
 
+@app.get("/style.css")
+def read_css():
+    return FileResponse("style.css")
+
+@app.get("/app.js")
+def read_js():
+    return FileResponse("app.js")
+
 
 @app.get("/api/search")
 def search_catalog(q: str = ""):
