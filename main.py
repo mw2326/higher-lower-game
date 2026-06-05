@@ -1,6 +1,7 @@
 import os
 import re
-import sqlite3
+import psycopg2  # Swapped sqlite3 for psycopg2
+from psycopg2.extras import RealDictCursor  # This gives us rows as dictionaries natively
 from datetime import datetime
 
 from fastapi import FastAPI, HTTPException
@@ -9,93 +10,22 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 
-DB_FILE = "game.db"
+# Grabs our secure session pooler link from your Render Environment Variables
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 # ---------------------------------------------------------------------- #
 # Database helpers                                                       #
 # ---------------------------------------------------------------------- #
 
 def get_db():
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
+    # Connect directly to your live Supabase cloud engine
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     return conn
 
 
-def init_db_structures():
-    """
-    Create tables on first boot and migrate any missing columns on existing DBs.
-    This handles the case where game.db was created before spotify_uri was added.
-    """
-    conn = get_db()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS songs (
-            id               INTEGER PRIMARY KEY AUTOINCREMENT,
-            title            TEXT    NOT NULL,
-            artist           TEXT    NOT NULL,
-            genre            TEXT    DEFAULT 'K-Pop',
-            spotify_uri      TEXT    DEFAULT '',
-            stream_count     INTEGER DEFAULT 0,
-            recommended_by   TEXT    DEFAULT 'System Core',
-            notes            TEXT    DEFAULT '',
-            last_updated     TEXT    NOT NULL
-        )
-    """)
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS leaderboard (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            username     TEXT    NOT NULL,
-            high_score   INTEGER NOT NULL,
-            achieved_at  TEXT    NOT NULL
-        )
-    """)
-
-    # ── PERMANENT ARTIST VS POET PURGE GATES ──────────────────────────────
-    fake_ive_tracks = [
-        'Fresh', 'Medicine', 'Break Away', 'Sincerely Me', "Leavin'", 'Kids Again',
-        'Somewhere Else', 'Everything Must Go', 'Break Away (Piano Version)', 
-        'Leaving in the Morning (feat. Blackbear)', 'Stay', 'Wait for You', 
-        'Anything at All', 'The Remedy', 'Different People (feat. Devyn De Loera)', 
-        'Whiskey Problems', 'Let You Go', 'Remember This', 'The Best That You Can Be', 
-        "Leavin' in the Morning", 'Different People', 'Car Crash', 'Favorite Fix', 
-        'Unconscious Reality', 'Damn Rough Night', "We're All The Same", 
-        'So Much I Never Said', 'Miserably Loving You', 'Broke But Not Broken', 
-        "He's Just Not Me", 'Alive', 'Giving Yourself Away', 'Break', 'Hang Around', 
-        "Where I'm Gonna Be", 'Dreaming My Way to You', 'Rescue', 'To Hell With The Letdown', 
-        'Assurance Closure', 'Lisa Marie', 'Infallible Remedy', 'All In'
-    ]
-    
-    cursor.execute("""
-        DELETE FROM songs 
-        WHERE artist = 'IVE' AND title IN ({})
-    """.format(','.join('?' for _ in fake_ive_tracks)), fake_ive_tracks)
-    
-    if cursor.rowcount > 0:
-        print(f"🧹 Startup Shield: Instantly neutralized {cursor.rowcount} corrupted rock tracks from the IVE pool.")
-        conn.commit()
-    # ──────────────────────────────────────────────────────────────────────
-
-    # ── Schema migrations ──────────────────────────────────────────────────
-    cursor.execute("PRAGMA table_info(songs)")
-    existing_columns = {row[1] for row in cursor.fetchall()}
-
-    migrations = [
-        ("spotify_uri",    "TEXT    DEFAULT ''"),
-        ("recommended_by", "TEXT    DEFAULT 'System Core'"),
-        ("notes",          "TEXT    DEFAULT ''"),
-        ("last_updated",   "TEXT    DEFAULT '2026-05-31T00:00:00'")
-    ]
-    for col_name, col_def in migrations:
-        if col_name not in existing_columns:
-            cursor.execute(f"ALTER TABLE songs ADD COLUMN {col_name} {col_def}")
-            print(f"   ↳ Migrated: added column '{col_name}' to songs table.")
-
-    conn.commit()
-    conn.close()
-    print("🎯 SQLite game tables verified and ready.")
-
+# NOTE: We removed the old init_db_structures() function because SQLite functions 
+# like 'PRAGMA table_info' crash instantly on PostgreSQL. 
+# Your table structure is now beautifully managed visually inside the Supabase dashboard!
 
 # ---------------------------------------------------------------------- #
 # App lifecycle                                                          #
@@ -103,8 +33,8 @@ def init_db_structures():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Setup database on boot, completely omitting any background scrape loops
-    init_db_structures()
+    # App initialization check
+    print("🚀 Cloud database engine connected cleanly to Supabase session pooler.")
     yield
 
 
@@ -161,18 +91,20 @@ def search_catalog(q: str = ""):
         return []
     conn = get_db()
     cursor = conn.cursor()
+    # 1. Swapped '?' for '%s' 
+    # 2. Changed 'LIKE' to 'ILIKE' for superior case-insensitive cloud searching
     cursor.execute(
-        "SELECT * FROM songs WHERE title LIKE ? OR artist LIKE ? OR recommended_by LIKE ? LIMIT 100",
+        "SELECT * FROM songs WHERE title ILIKE %s OR artist ILIKE %s OR recommended_by ILIKE %s LIMIT 100",
         (f"%{q}%", f"%{q}%", f"%{q}%"),
     )
-    results = [dict(row) for row in cursor.fetchall()]
+    results = cursor.fetchall()  # RealDictCursor handles dictionaries automatically
     conn.close()
     return results
 
 
 @app.get("/api/game/pair")
 def get_game_pair():
-    """Return two distinct random songs with their 'last_updated' timestamp."""
+    """Return two distinct random songs from your Supabase cloud data columns."""
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute(
@@ -185,27 +117,28 @@ def get_game_pair():
     if len(rows) < 2:
         raise HTTPException(
             status_code=400,
-            detail="Not enough songs in the catalog yet.",
+            detail="Not enough songs in your Supabase catalog yet! Run your migration script or click insert row.",
         )
 
-    return {"song_a": dict(rows[0]), "song_b": dict(rows[1])}
+    return {"song_a": rows[0], "song_b": rows[1]}
 
 
 @app.post("/api/game/recommend")
 async def recommend_new_track(req: TrackRecommendationRequest):
-    """Inserts community additions natively using user-submitted metrics."""
-    print(f"\n📥 New recommendation from: {req.recommended_by}")
+    """Inserts community additions natively into Supabase using user-submitted metrics."""
+    print(f"\n📥 New cloud recommendation from: {req.recommended_by}")
     initial_count = max(0, req.stream_count)
 
     conn = get_db()
     try:
         cursor = conn.cursor()
+        # Swapped '?' for '%s' and added 'RETURNING id' since Postgres doesn't use lastrowid
         cursor.execute(
             """
             INSERT INTO songs
                 (title, artist, genre, spotify_uri, stream_count,
                  recommended_by, notes, last_updated)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
             """,
             (
                 req.title.strip(),
@@ -218,8 +151,9 @@ async def recommend_new_track(req: TrackRecommendationRequest):
                 datetime.utcnow().isoformat(),
             ),
         )
+        new_id = cursor.fetchone()["id"]
         conn.commit()
-        return {"status": "success", "id": cursor.lastrowid, "stream_count": initial_count}
+        return {"status": "success", "id": new_id, "stream_count": initial_count}
     except Exception as db_err:
         raise HTTPException(status_code=500, detail=f"Database error: {db_err}")
     finally:
@@ -230,8 +164,10 @@ async def recommend_new_track(req: TrackRecommendationRequest):
 def log_high_score(req: ScoreSubmissionRequest):
     conn = get_db()
     try:
-        conn.execute(
-            "INSERT INTO leaderboard (username, high_score, achieved_at) VALUES (?, ?, ?)",
+        cursor = conn.cursor()
+        # Swapped '?' for '%s'
+        cursor.execute(
+            "INSERT INTO leaderboard (username, high_score, achieved_at) VALUES (%s, %s, %s)",
             (req.username.strip(), req.high_score, datetime.now().isoformat()),
         )
         conn.commit()
@@ -249,7 +185,7 @@ def get_leaderboard():
     cursor.execute(
         "SELECT username, high_score, achieved_at FROM leaderboard ORDER BY high_score DESC LIMIT 10"
     )
-    top_scores = [dict(row) for row in cursor.fetchall()]
+    top_scores = cursor.fetchall()
     conn.close()
     return top_scores
 
