@@ -82,23 +82,6 @@ python pipeline/populate_spotify_uris.py
 
 This looks up every song in the catalog and saves its Spotify track ID to the database. Songs with a URI will have their stream counts updated by the hourly scraper.
 
-### 4. Start the server
-
-```bash
-python main.py
-```
-
-The server runs at `http://127.0.0.1:8000`. Open that in your browser and the game loads automatically.
-
-5 seconds after startup the first scrape cycle fires and pulls live stream counts for all songs that have a Spotify URI. You'll see the results logged in the terminal:
-
-```
-⏰ [2026-05-31 16:00:00] Starting hourly stream refresh...
-   ✅ IVE — LOVE DIVE: 312,847,201
-   ✅ NewJeans — Attention: 287,104,932
-   🏁 Refresh complete. Updated 142/142 tracks.
-```
-
 ---
 
 ## API Endpoints
@@ -111,40 +94,3 @@ The server runs at `http://127.0.0.1:8000`. Open that in your browser and the ga
 | `POST` | `/api/game/leaderboard` | Submits a score `{ username, high_score }` |
 | `GET` | `/api/search?q={query}` | Searches the catalog by title, artist, or submitter |
 
-## Adding New Artists
-
-`populate_spotify_uris.py` has a hardcoded `ARTIST_IDS` dictionary that maps artist names to their Spotify artist IDs. This ensures short or common names like **IVE** don't get mismatched. If your catalog includes an artist not already in the list, grab their ID from their Spotify URL:
-
-```
-open.spotify.com/artist/{ARTIST_ID}
-```
-
-And add it to the dict:
-
-```python
-ARTIST_IDS = {
-    "IVE": "6RHTUrRF63xao58xh9FXYJ",
-    "Your Artist": "their_spotify_artist_id",
-    ...
-}
-```
-
----
-
-## Resetting the Database
-
-To wipe `game.db` and restore the committed baseline:
-
-```bash
-python reset_to_baseline.py
-```
-
-To start completely from scratch:
-
-```bash
-del game.db                              # Windows
-python pipeline/init_game_db.py
-python pipeline/migrate_and_seed.py
-python pipeline/populate_spotify_uris.py
-python main.py
-```
