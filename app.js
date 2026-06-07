@@ -24,29 +24,6 @@ function formatScrapeDate(isoString) {
     }
 }
 
-function preloadCardImages(urlA, urlB) {
-    const cleanUrlA = (urlA && urlA.startsWith("//") ? "https:" + urlA : urlA) || "https://placehold.co/300x300/1f2937/ffffff?text=No+Cover";
-    const cleanUrlB = (urlB && urlB.startsWith("//") ? "https:" + urlB : urlB) || "https://placehold.co/300x300/1f2937/ffffff?text=No+Cover";
-
-    // Build standalone promise instances for both image assets
-    const promiseA = new Promise((resolve) => {
-        const img = new Image();
-        img.src = cleanUrlA;
-        img.onload = () => resolve(cleanUrlA);
-        img.onerror = () => resolve(cleanUrlA); // Resolve anyway to prevent game lockouts on bad links
-    });
-
-    const promiseB = new Promise((resolve) => {
-        const img = new Image();
-        img.src = cleanUrlB;
-        img.onload = () => resolve(cleanUrlB);
-        img.onerror = () => resolve(cleanUrlB);
-    });
-
-    // Wait until BOTH files are fully downloaded before letting the game continue
-    return Promise.all([promiseA, promiseB]);
-}
-
 // ── Fetch a fresh pairing setup from the server ───────────────────────
 
 async function fetchNextGamePairing() {
@@ -58,9 +35,6 @@ async function fetchNextGamePairing() {
             return;
         }
         const data = await res.json();
-        
-        await preloadCardImages(data.song_a.image_url, data.song_b.image_url);
-
         trackAnchorA = data.song_a;
         trackTargetB = data.song_b;
         renderGameUIState();
@@ -75,11 +49,8 @@ async function fetchNextTargetSongOnly() {
         const res  = await fetch(`${API_BASE}/game/pair`);
         const data = await res.json();
 
-        const candidateTarget = (data.song_b.id === trackAnchorA.id) ? data.song_a : data.song_b;
-
-        await preloadCardImages(trackAnchorA.image_url, candidateTarget.image_url);
-
-        trackTargetB = candidateTarget;
+        // Prevent self-reference bugs
+        trackTargetB = (data.song_b.id === trackAnchorA.id) ? data.song_a : data.song_b;
         renderGameUIState();
     } catch (err) {
         console.error("fetchNextTargetSongOnly failed:", err);
@@ -92,10 +63,22 @@ function renderGameUIState() {
     document.getElementById("artistA").innerText = trackAnchorA.artist;
     document.getElementById("streamsA").innerText = trackAnchorA.stream_count.toLocaleString();
     
-    // Process and attach sanitized source links (Guaranteed to be instantly available!)
     let imgUrlA = trackAnchorA.image_url || "";
     if (imgUrlA.startsWith("//")) imgUrlA = "https:" + imgUrlA;
     document.getElementById("coverA").src = imgUrlA || "https://placehold.co/300x300/1f2937/ffffff?text=No+Cover";
+
+    // 🎧 FIXED EMBED A: Points to secure official Spotify embeds using evaluated template variables
+    const playerContainerA = document.getElementById("playerA");
+    if (playerContainerA && trackAnchorA.spotify_uri) {
+        const trackIdA = trackAnchorA.spotify_uri.split(":").pop().trim();
+        playerContainerA.innerHTML = `
+            <iframe src="https://open.spotify.com/embed/track/${trackIdA}?utm_source=generator&theme=0" 
+                    width="100%" height="80" frameBorder="0" allowfullscreen="" 
+                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+                    style="border-radius: 8px; margin-top: 12px;" loading="lazy"></iframe>`;
+    } else if (playerContainerA) {
+        playerContainerA.innerHTML = "";
+    }
 
     // Right Card (Challenger State)
     document.getElementById("titleB").innerText = trackTargetB.title;
@@ -105,6 +88,19 @@ function renderGameUIState() {
     let imgUrlB = trackTargetB.image_url || "";
     if (imgUrlB.startsWith("//")) imgUrlB = "https:" + imgUrlB;
     document.getElementById("coverB").src = imgUrlB || "https://placehold.co/300x300/1f2937/ffffff?text=No+Cover";
+
+    // 🎧 FIXED EMBED B: Points to secure official Spotify embeds using evaluated template variables
+    const playerContainerB = document.getElementById("playerB");
+    if (playerContainerB && trackTargetB.spotify_uri) {
+        const trackIdB = trackTargetB.spotify_uri.split(":").pop().trim();
+        playerContainerB.innerHTML = `
+            <iframe src="https://open.spotify.com/embed/track/${trackIdB}?utm_source=generator&theme=0" 
+                    width="100%" height="80" frameBorder="0" allowfullscreen="" 
+                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+                    style="border-radius: 8px; margin-top: 12px;" loading="lazy"></iframe>`;
+    } else if (playerContainerB) {
+        playerContainerB.innerHTML = "";
+    }
 
     // Reset layout visibility modifiers
     document.getElementById("cardB").className = "game-card active-comparison";
