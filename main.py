@@ -123,22 +123,22 @@ def get_game_pair():
         )
     return {
         "song_a": {
-            "id": rows[0][0],
-            "title": rows[0][1],
-            "artist": rows[0][2],
-            "genre": rows[0][3],
-            "spotify_uri": rows[0][4],
-            "stream_count": rows[0][5],
-            "image_url": rows[0][6]
+            "id": rows[0]["id"],
+            "title": rows[0]["title"],
+            "artist": rows[0]["artist"],
+            "genre": rows[0]["genre"],
+            "spotify_uri": rows[0]["spotify_uri"],
+            "stream_count": rows[0]["stream_count"],
+            "image_url": rows[0]["image_url"]
         },
         "song_b": {
-            "id": rows[1][0],
-            "title": rows[1][1],
-            "artist": rows[1][2],
-            "genre": rows[1][3],
-            "spotify_uri": rows[1][4],
-            "stream_count": rows[1][5],
-            "image_url": rows[1][6]
+            "id": rows[1]["id"],
+            "title": rows[1]["title"],
+            "artist": rows[1]["artist"],
+            "genre": rows[1]["genre"],
+            "spotify_uri": rows[1]["spotify_uri"],
+            "stream_count": rows[1]["stream_count"],
+            "image_url": rows[1]["image_url"]
         }
     }
 
