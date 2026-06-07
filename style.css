@@ -212,6 +212,8 @@ h2 {
     margin-bottom: 15px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
     border: 1px solid #374151; 
+    background-color: #1f2937;
+    color: transparent;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
