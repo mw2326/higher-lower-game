@@ -184,7 +184,7 @@ def get_leaderboard():
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT username, high_score, achieved_at FROM leaderboard ORDER BY high_score DESC LIMIT 10"
+        "SELECT username, high_score, achieved_at FROM leaderboard ORDER BY high_score DESC LIMIT 5"
     )
     top_scores = cursor.fetchall()
     conn.close()
