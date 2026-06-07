@@ -1,7 +1,8 @@
 import os
 import re
-import psycopg2  # Swapped sqlite3 for psycopg2
-from psycopg2.extras import RealDictCursor  # This gives us rows as dictionaries natively
+import psycopg2
+from psycopg2.extras import RealDictCursor  # Gives us rows as dictionaries natively
+from psycopg2.pool import ThreadedConnectionPool  # Active pool engine
 from datetime import datetime
 
 from fastapi import FastAPI, HTTPException
@@ -13,19 +14,17 @@ from contextlib import asynccontextmanager
 # Grabs our secure session pooler link from your Render Environment Variables
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-# ---------------------------------------------------------------------- #
-# Database helpers                                                       #
-# ---------------------------------------------------------------------- #
+if not DATABASE_URL:
+    raise RuntimeError("❌ DATABASE_URL environment variable is missing from your environment dashboard!")
 
-def get_db():
-    # Connect directly to your live Supabase cloud engine
-    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
-    return conn
+# 🎯 INITIALIZE GLOBAL POOL: Creates and holds open a reusable bundle of authenticated sockets
+try:
+    db_pool = ThreadedConnectionPool(minconn=1, maxconn=10, dsn=DATABASE_URL)
+    print("✅ Permanent database connection pool established successfully.")
+except Exception as pool_err:
+    print(f"❌ Failed to initialize database connection pool: {pool_err}")
+    raise pool_err
 
-
-# NOTE: We removed the old init_db_structures() function because SQLite functions 
-# like 'PRAGMA table_info' crash instantly on PostgreSQL. 
-# Your table structure is now beautifully managed visually inside the Supabase dashboard!
 
 # ---------------------------------------------------------------------- #
 # App lifecycle                                                          #
@@ -33,9 +32,12 @@ def get_db():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # App initialization check
-    print("🚀 Cloud database engine connected cleanly to Supabase session pooler.")
+    # App initialization confirmation
+    print("🚀 Cloud backend engine running flawlessly on Render.")
     yield
+    # Clean up and disconnect all sockets when the server spins down or restarts
+    db_pool.closeall()
+    print("🛑 Database connection pool closed down gracefully.")
 
 
 app = FastAPI(lifespan=lifespan)
@@ -90,102 +92,69 @@ def read_js():
 def search_catalog(q: str = ""):
     if not q:
         return []
-    conn = get_db()
-    cursor = conn.cursor()
-    # 1. Swapped '?' for '%s' 
-    # 2. Changed 'LIKE' to 'ILIKE' for superior case-insensitive cloud searching
-    cursor.execute(
-        "SELECT * FROM songs WHERE title ILIKE %s OR artist ILIKE %s OR recommended_by ILIKE %s LIMIT 100",
-        (f"%{q}%", f"%{q}%", f"%{q}%"),
-    )
-    results = cursor.fetchall()  # RealDictCursor handles dictionaries automatically
-    conn.close()
-    return results
+    
+    # 🏎️ Borrow an open, hot socket from our pool instantly
+    conn = db_pool.getconn()
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute(
+            "SELECT * FROM songs WHERE title ILIKE %s OR artist ILIKE %s OR recommended_by ILIKE %s LIMIT 100",
+            (f"%{q}%", f"%{q}%", f"%{q}%"),
+        )
+        results = cursor.fetchall()
+        return results
+    finally:
+        # 🎯 CRUCIAL: Return the connection to the pool so other players can use it
+        db_pool.putconn(conn)
 
 
 @app.get("/api/game/pair")
 def get_game_pair():
     """Return two distinct random songs from your Supabase cloud data columns."""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT id, title, artist, genre, spotify_uri, stream_count, image_url 
-        FROM songs 
-        ORDER BY RANDOM() LIMIT 2
-    """)
-    rows = cursor.fetchall()
-    conn.close()
+    conn = db_pool.getconn()
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("""
+            SELECT id, title, artist, genre, spotify_uri, stream_count, image_url 
+            FROM songs 
+            ORDER BY RANDOM() LIMIT 2
+        """)
+        rows = cursor.fetchall()
 
-    if len(rows) < 2:
-        raise HTTPException(
-            status_code=400,
-            detail="Not enough songs in your Supabase catalog yet! Run your migration script or click insert row.",
-        )
-    return {
-        "song_a": {
-            "id": rows[0]["id"],
-            "title": rows[0]["title"],
-            "artist": rows[0]["artist"],
-            "genre": rows[0]["genre"],
-            "spotify_uri": rows[0]["spotify_uri"],
-            "stream_count": rows[0]["stream_count"],
-            "image_url": rows[0]["image_url"]
-        },
-        "song_b": {
-            "id": rows[1]["id"],
-            "title": rows[1]["title"],
-            "artist": rows[1]["artist"],
-            "genre": rows[1]["genre"],
-            "spotify_uri": rows[1]["spotify_uri"],
-            "stream_count": rows[1]["stream_count"],
-            "image_url": rows[1]["image_url"]
+        if len(rows) < 2:
+            raise HTTPException(
+                status_code=400,
+                detail="Not enough songs in your Supabase catalog yet! Run your migration script or click insert row.",
+            )
+        return {
+            "song_a": {
+                "id": rows[0]["id"],
+                "title": rows[0]["title"],
+                "artist": rows[0]["artist"],
+                "genre": rows[0]["genre"],
+                "spotify_uri": rows[0]["spotify_uri"],
+                "stream_count": rows[0]["stream_count"],
+                "image_url": rows[0]["image_url"]
+            },
+            "song_b": {
+                "id": rows[1]["id"],
+                "title": rows[1]["title"],
+                "artist": rows[1]["artist"],
+                "genre": rows[1]["genre"],
+                "spotify_uri": rows[1]["spotify_uri"],
+                "stream_count": rows[1]["stream_count"],
+                "image_url": rows[1]["image_url"]
+            }
         }
-    }
-
-
-#@app.post("/api/game/recommend")
-#async def recommend_new_track(req: TrackRecommendationRequest):
-#    """Inserts community additions natively into Supabase using user-submitted metrics."""
-#    print(f"\n📥 New cloud recommendation from: {req.recommended_by}")
-#    initial_count = max(0, req.stream_count)
-#
-#    conn = get_db()
-#    try:
-#        cursor = conn.cursor()
-#        # Swapped '?' for '%s' and added 'RETURNING id' since Postgres doesn't use lastrowid
-#        cursor.execute(
-#            """
-#            INSERT INTO songs
-#                (title, artist, genre, spotify_uri, stream_count,
-#                 recommended_by, notes, last_updated)
-#            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
-#            """,
-#            (
-#                req.title.strip(),
-#                req.artist.strip(),
-#                req.genre.strip(),
-#                req.spotify_uri.strip(),
-#                initial_count,
-#                req.recommended_by.strip() or "Anonymous",
-#                req.notes.strip(),
-#                datetime.utcnow().isoformat(),
-#            ),
-#        )
-#        new_id = cursor.fetchone()["id"]
-#        conn.commit()
-#        return {"status": "success", "id": new_id, "stream_count": initial_count}
-#    except Exception as db_err:
-#        raise HTTPException(status_code=500, detail=f"Database error: {db_err}")
-#    finally:
-#        conn.close()
+    finally:
+        db_pool.putconn(conn)
 
 
 @app.post("/api/game/leaderboard")
 def log_high_score(req: ScoreSubmissionRequest):
-    conn = get_db()
+    conn = db_pool.getconn()
     try:
-        cursor = conn.cursor()
-        # Swapped '?' for '%s'
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         cursor.execute(
             "INSERT INTO leaderboard (username, high_score, achieved_at) VALUES (%s, %s, %s)",
             (req.username.strip(), req.high_score, datetime.now().isoformat()),
@@ -195,19 +164,21 @@ def log_high_score(req: ScoreSubmissionRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to submit score: {e}")
     finally:
-        conn.close()
+        db_pool.putconn(conn)
 
 
 @app.get("/api/game/leaderboard")
 def get_leaderboard():
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT username, high_score, achieved_at FROM leaderboard ORDER BY high_score DESC LIMIT 5"
-    )
-    top_scores = cursor.fetchall()
-    conn.close()
-    return top_scores
+    conn = db_pool.getconn()
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute(
+            "SELECT username, high_score, achieved_at FROM leaderboard ORDER BY high_score DESC LIMIT 5"
+        )
+        top_scores = cursor.fetchall()
+        return top_scores
+    finally:
+        db_pool.putconn(conn)
 
 
 if __name__ == "__main__":
