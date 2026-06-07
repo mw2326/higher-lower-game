@@ -7,6 +7,8 @@ body {
     padding: 0 20px;
     display: flex;
     gap: 30px;
+    justify-content: center;
+    align-items: flex-start;
 }
 
 .game-panel { 
@@ -14,13 +16,15 @@ body {
     display: flex; 
     flex-direction: column; 
     gap: 20px; 
+    width: 100%;
 }
 
 .side-panel { 
-    flex: 1.2; 
+    flex: 1; 
     display: flex; 
     flex-direction: column; 
     gap: 20px; 
+    width: 100%;
 }
 
 .box { 
@@ -222,5 +226,36 @@ h2 {
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
 }
 
+#playerA, #playerB {
+    width: 100%;
+}
+
 /* ── Utility ────────────────────────────────────────────── */
 .hidden { display: none !important; }
+
+/* ── 📱 ADDED: RESPONSIVE MEDIA SHIELD ── */
+/* Stacks panels cleanly on tablets and smartphone mobile viewports */
+@media (max-width: 1024px) {
+    body {
+        flex-direction: column;
+        align-items: center;
+        margin: 20px auto;
+    }
+    
+    .game-panel, .side-panel {
+        flex: none;
+        width: 100%;
+    }
+    
+    /* Safely turns the cards horizontal or stacked on mobile screens */
+    .arena {
+        flex-direction: column;
+    }
+    
+    .vs-circle {
+        right: 50%;
+        top: auto;
+        bottom: -30px;
+        transform: translateX(50%);
+    }
+}
