@@ -120,36 +120,6 @@ def pull_absolute_discographies():
     print(f"\n🎉 Library Sync Complete! Total {total_tracks_inserted} unique tracks successfully written.")
     conn.close()
 
-def seed_matching_interaction_matrix():
-    print("\n⚡ Generating matching 5,000+ interaction rows for the PyTorch engine...")
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT id FROM songs")
-    song_ids = [row[0] for row in cursor.fetchall()]
-    
-    if not song_ids:
-        print("Error: No songs found. Run the extraction engine first.")
-        return
-        
-    dummy_interactions = []
-    # Build 100 power-user profiles to establish dense correlation lines for deep learning
-    for user_id in range(1, 101):
-        num_favs = random.randint(15, 45)
-        user_favorites = random.sample(song_ids, min(num_favs, len(song_ids)))
-        
-        for song_id in user_favorites:
-            listen_count = random.randint(1, 4)
-            for _ in range(listen_count):
-                timestamp = datetime.utcnow().isoformat()
-                dummy_interactions.append((user_id, song_id, timestamp))
-                
-    cursor.executemany("INSERT INTO listening_history (user_id, song_id, timestamp) VALUES (?, ?, ?)", dummy_interactions)
-    conn.commit()
-    print(f"✅ Generated {len(dummy_interactions)} historical dataset vector coordinates.")
-    conn.close()
-
 if __name__ == "__main__":
     rebuild_clean_database()
     pull_absolute_discographies()
-    seed_matching_interaction_matrix()
