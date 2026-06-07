@@ -73,6 +73,7 @@ class ScoreSubmissionRequest(BaseModel):
 # ---------------------------------------------------------------------- #
 
 @app.get("/")
+@app.head("/")
 def read_root():
     return FileResponse("index.html")
 
