@@ -24,6 +24,29 @@ function formatScrapeDate(isoString) {
     }
 }
 
+function preloadCardImages(urlA, urlB) {
+    const cleanUrlA = (urlA && urlA.startsWith("//") ? "https:" + urlA : urlA) || "https://placehold.co/300x300/1f2937/ffffff?text=No+Cover";
+    const cleanUrlB = (urlB && urlB.startsWith("//") ? "https:" + urlB : urlB) || "https://placehold.co/300x300/1f2937/ffffff?text=No+Cover";
+
+    // Build standalone promise instances for both image assets
+    const promiseA = new Promise((resolve) => {
+        const img = new Image();
+        img.src = cleanUrlA;
+        img.onload = () => resolve(cleanUrlA);
+        img.onerror = () => resolve(cleanUrlA); // Resolve anyway to prevent game lockouts on bad links
+    });
+
+    const promiseB = new Promise((resolve) => {
+        const img = new Image();
+        img.src = cleanUrlB;
+        img.onload = () => resolve(cleanUrlB);
+        img.onerror = () => resolve(cleanUrlB);
+    });
+
+    // Wait until BOTH files are fully downloaded before letting the game continue
+    return Promise.all([promiseA, promiseB]);
+}
+
 // ── Fetch a fresh pairing setup from the server ───────────────────────
 
 async function fetchNextGamePairing() {
@@ -35,6 +58,9 @@ async function fetchNextGamePairing() {
             return;
         }
         const data = await res.json();
+        
+        await preloadCardImages(data.song_a.image_url, data.song_b.image_url);
+
         trackAnchorA = data.song_a;
         trackTargetB = data.song_b;
         renderGameUIState();
@@ -49,8 +75,11 @@ async function fetchNextTargetSongOnly() {
         const res  = await fetch(`${API_BASE}/game/pair`);
         const data = await res.json();
 
-        // Safe Fallback: Prevent matching self reference bugs
-        trackTargetB = (data.song_b.id === trackAnchorA.id) ? data.song_a : data.song_b;
+        const candidateTarget = (data.song_b.id === trackAnchorA.id) ? data.song_a : data.song_b;
+
+        await preloadCardImages(trackAnchorA.image_url, candidateTarget.image_url);
+
+        trackTargetB = candidateTarget;
         renderGameUIState();
     } catch (err) {
         console.error("fetchNextTargetSongOnly failed:", err);
@@ -59,18 +88,25 @@ async function fetchNextTargetSongOnly() {
 
 function renderGameUIState() {
     // Left Card (Anchor State)
-    document.getElementById("titleA").innerText  = trackAnchorA.title;
+    document.getElementById("titleA").innerText = trackAnchorA.title;
     document.getElementById("artistA").innerText = trackAnchorA.artist;
     document.getElementById("streamsA").innerText = trackAnchorA.stream_count.toLocaleString();
-    document.getElementById("coverA").src         = trackAnchorA.image_url || "fallback-placeholder.png";
+    
+    // Process and attach sanitized source links (Guaranteed to be instantly available!)
+    let imgUrlA = trackAnchorA.image_url || "";
+    if (imgUrlA.startsWith("//")) imgUrlA = "https:" + imgUrlA;
+    document.getElementById("coverA").src = imgUrlA || "https://placehold.co/300x300/1f2937/ffffff?text=No+Cover";
 
-    // Right Card (Challenger State — hidden until guess action runs)
-    document.getElementById("titleB").innerText  = trackTargetB.title;
+    // Right Card (Challenger State)
+    document.getElementById("titleB").innerText = trackTargetB.title;
     document.getElementById("artistB").innerText = trackTargetB.artist;
     document.getElementById("streamsB").innerText = trackTargetB.stream_count.toLocaleString();
-    document.getElementById("coverB").src        = trackTargetB.image_url || "fallback-placeholder.png";
+    
+    let imgUrlB = trackTargetB.image_url || "";
+    if (imgUrlB.startsWith("//")) imgUrlB = "https:" + imgUrlB;
+    document.getElementById("coverB").src = imgUrlB || "https://placehold.co/300x300/1f2937/ffffff?text=No+Cover";
 
-    // Reset visual UI layers
+    // Reset layout visibility modifiers
     document.getElementById("cardB").className = "game-card active-comparison";
     document.getElementById("streamReveal").classList.add("hidden");
     document.getElementById("actionGroup").classList.remove("hidden");
