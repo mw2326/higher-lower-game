@@ -62,11 +62,13 @@ function renderGameUIState() {
     document.getElementById("titleA").innerText  = trackAnchorA.title;
     document.getElementById("artistA").innerText = trackAnchorA.artist;
     document.getElementById("streamsA").innerText = trackAnchorA.stream_count.toLocaleString();
+    document.getElementById("coverA").src         = trackAnchorA.image_url || "fallback-placeholder.png";
 
     // Right Card (Challenger State — hidden until guess action runs)
     document.getElementById("titleB").innerText  = trackTargetB.title;
     document.getElementById("artistB").innerText = trackTargetB.artist;
     document.getElementById("streamsB").innerText = trackTargetB.stream_count.toLocaleString();
+    document.getElementById("coverB").src        = trackTargetB.image_url || "fallback-placeholder.png";
 
     // Reset visual UI layers
     document.getElementById("cardB").className = "game-card active-comparison";

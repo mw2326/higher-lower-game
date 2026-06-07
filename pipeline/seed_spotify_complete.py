@@ -1,62 +1,48 @@
+import os
+import random
+import sys
+import psycopg2
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
-import sqlite3
-import random
-from datetime import datetime
-import os
 from dotenv import load_dotenv
 
 load_dotenv()
 CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    print("❌ ERROR: DATABASE_URL variable not found.")
+    sys.exit(1)
 
 auth_manager = SpotifyClientCredentials(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
 sp = spotipy.Spotify(auth_manager=auth_manager)
 
-# The target group list to extract absolute histories for
 KPOP_ARTISTS = [
     "NewJeans", "BTS", "aespa", "Stray Kids", "TWICE", "BLACKPINK", 
     "SEVENTEEN", "IVE", "LE SSERAFIM", "ENHYPEN", "TOMORROW X TOGETHER", "Red Velvet", "NMIXX"
 ]
 
-DB_FILE = "music_v2.db"
-
-def rebuild_clean_database():
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("DROP TABLE IF EXISTS songs")
-    cursor.execute("DROP TABLE IF EXISTS listening_history")
-    
-    cursor.execute('''
-        CREATE TABLE songs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            artist TEXT NOT NULL,
-            genre TEXT NOT NULL,
-            popularity INTEGER DEFAULT 0
-        )
-    ''')
-    
-    cursor.execute('''
-        CREATE TABLE listening_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            song_id INTEGER NOT NULL,
-            rating REAL DEFAULT 1.0,
-            timestamp TEXT NOT NULL
-        )
-    ''')
-    conn.commit()
-    conn.close()
+def get_db_connection():
+    return psycopg2.connect(DATABASE_URL)
 
 def pull_absolute_discographies():
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    print("🚀 Connecting to Spotify API for Complete Discography Sweep...")
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+    except Exception as e:
+        print(f"❌ Failed to connect to Supabase: {e}")
+        return
+
+    # 🛑 ANTI-DUPLICATE SHIELD: Fetch ALL song titles already in your Supabase DB
+    print("🛡️ Checking Supabase for existing songs to prevent duplicates...")
+    cursor.execute("SELECT LOWER(TRIM(title)) FROM songs")
+    seen_titles = set(row[0] for row in cursor.fetchall() if row[0])
+    print(f"✅ Loaded {len(seen_titles)} tracks already saved in cloud.")
+
+    print("\n🚀 Connecting to Spotify API...")
     total_tracks_inserted = 0
     
-    # Direct dictionary mapping to guarantee exact alphanumeric IDs for problematic artists
-    # FIX: Corrected case-sensitive alphanumeric Spotify IDs
     ARTIST_ID_OVERRIDES = {
         "BTS": "3Nrfpe0tUJi4K4DXYWgMUX",
         "AESPA": "6YVMFz59CuY7ngCxTxjpxE",
@@ -66,60 +52,62 @@ def pull_absolute_discographies():
 
     for artist_name in KPOP_ARTISTS:
         print(f"\n🎤 Processing artist: {artist_name}...")
-        
-        # Normalize the name to check against overrides
         lookup_name = artist_name.strip().upper()
         
         if lookup_name in ARTIST_ID_OVERRIDES:
             artist_id = ARTIST_ID_OVERRIDES[lookup_name]
-            print(f"   🎯 Override matched! Using hardcoded ID: {artist_id}")
         else:
-            # Fallback to standard search API for other groups
-            print(f"   🔍 Searching Spotify API for artist string...")
             search_results = sp.search(q=f"artist:{artist_name}", type="artist", limit=1)
             if not search_results['artists']['items']:
-                print(f"   ⚠️ Could not find any profile for {artist_name}, skipping.")
                 continue
             artist_id = search_results['artists']['items'][0]['id']
-            print(f"   ✅ Found ID via search: {artist_id}")
 
-        # SANITY CHECK CATCH: Ensure the ID is a valid format before making requests
-        if not artist_id or not isinstance(artist_id, str) or " " in artist_id:
-            print(f"   ❌ CRITICAL ERROR: Malformed artist_id discovered: '{artist_id}'. Skipping to protect pipeline.")
-            continue
-
-        seen_titles = set()
-        
         for release_type in ['album', 'single']:
             print(f"   📦 Fetching {release_type} collection...")
             try:
-                results = sp.artist_albums(artist_id, album_type=release_type, limit=50)
+                album_url = f"artists/{artist_id}/albums?include_groups={release_type}&market=US"
+                results = sp._get(album_url)
+                
                 for release in results['items']:
-                    tracks = sp.album_tracks(release['id'])['items']
-                    for track in tracks:
+                    # 🖼️ FIXED NESTING PATH: Images live straight inside the release object here!
+                    album_image_url = ""
+                    if 'images' in release and len(release['images']) > 1:
+                        album_image_url = release['images'][1]['url'] # 300x300 medium size
+                    elif 'album' in release and 'images' in release['album'] and len(release['album']['images']) > 1:
+                        album_image_url = release['album']['images'][1]['url']
+                    
+                    tracks_url = f"albums/{release['id']}/tracks?market=US"
+                    tracks_data = sp._get(tracks_url)
+                    
+                    for track in tracks_data['items']:
                         title = track['name']
                         clean_title = title.lower().strip()
                         
+                        # Check against global cloud duplicates AND local run duplicates
                         if clean_title in seen_titles:
                             continue
                         seen_titles.add(clean_title)
                         
-                        popularity = random.randint(70, 99)
-                        cursor.execute(
-                            "INSERT INTO songs (title, artist, genre, popularity) VALUES (?, ?, 'K-Pop', ?)",
-                            (title, artist_name, popularity)
-                        )
+                        track_uri = track['uri'].split(':')[-1] if 'uri' in track else ""
+                        
+                        cursor.execute("""
+                            INSERT INTO songs (title, artist, genre, image_url, spotify_uri, last_updated) 
+                            VALUES (%s, %s, 'K-Pop', %s, %s, NOW()::text)
+                        """, (title, artist_name, album_image_url, track_uri))
+                        
                         total_tracks_inserted += 1
+                        
+                conn.commit() # Commit per album collection phase
             except Exception as api_err:
-                print(f"   ⚠️ API Error processing {release_type} for ID {artist_id}: {api_err}")
+                print(f"   ⚠️ API/DB Error processing {release_type} for ID {artist_id}: {api_err}")
+                conn.rollback()
                 continue
                 
-        print(f"   📊 Current database progress: Added {len(seen_titles)} tracks for {artist_name}")
+        print(f"   📊 Finished processing for {artist_name}")
         
-    conn.commit()
-    print(f"\n🎉 Library Sync Complete! Total {total_tracks_inserted} unique tracks successfully written.")
+    cursor.close()
     conn.close()
+    print(f"\n🏁 Complete! Successfully appended {total_tracks_inserted} brand new unique visual tracks.")
 
 if __name__ == "__main__":
-    rebuild_clean_database()
     pull_absolute_discographies()

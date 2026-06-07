@@ -108,10 +108,11 @@ def get_game_pair():
     """Return two distinct random songs from your Supabase cloud data columns."""
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute(
-        "SELECT id, title, artist, genre, spotify_uri, stream_count, recommended_by, notes, last_updated "
-        "FROM songs ORDER BY RANDOM() LIMIT 2"
-    )
+    cursor.execute("""
+        SELECT id, title, artist, genre, spotify_uri, stream_count, image_url 
+        FROM songs 
+        ORDER BY RANDOM() LIMIT 2
+    """)
     rows = cursor.fetchall()
     conn.close()
 
@@ -120,45 +121,63 @@ def get_game_pair():
             status_code=400,
             detail="Not enough songs in your Supabase catalog yet! Run your migration script or click insert row.",
         )
+    return {
+        "song_a": {
+            "id": rows[0][0],
+            "title": rows[0][1],
+            "artist": rows[0][2],
+            "genre": rows[0][3],
+            "spotify_uri": rows[0][4],
+            "stream_count": rows[0][5],
+            "image_url": rows[0][6]
+        },
+        "song_b": {
+            "id": rows[1][0],
+            "title": rows[1][1],
+            "artist": rows[1][2],
+            "genre": rows[1][3],
+            "spotify_uri": rows[1][4],
+            "stream_count": rows[1][5],
+            "image_url": rows[1][6]
+        }
+    }
 
-    return {"song_a": rows[0], "song_b": rows[1]}
 
-
-@app.post("/api/game/recommend")
-async def recommend_new_track(req: TrackRecommendationRequest):
-    """Inserts community additions natively into Supabase using user-submitted metrics."""
-    print(f"\n📥 New cloud recommendation from: {req.recommended_by}")
-    initial_count = max(0, req.stream_count)
-
-    conn = get_db()
-    try:
-        cursor = conn.cursor()
-        # Swapped '?' for '%s' and added 'RETURNING id' since Postgres doesn't use lastrowid
-        cursor.execute(
-            """
-            INSERT INTO songs
-                (title, artist, genre, spotify_uri, stream_count,
-                 recommended_by, notes, last_updated)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
-            """,
-            (
-                req.title.strip(),
-                req.artist.strip(),
-                req.genre.strip(),
-                req.spotify_uri.strip(),
-                initial_count,
-                req.recommended_by.strip() or "Anonymous",
-                req.notes.strip(),
-                datetime.utcnow().isoformat(),
-            ),
-        )
-        new_id = cursor.fetchone()["id"]
-        conn.commit()
-        return {"status": "success", "id": new_id, "stream_count": initial_count}
-    except Exception as db_err:
-        raise HTTPException(status_code=500, detail=f"Database error: {db_err}")
-    finally:
-        conn.close()
+#@app.post("/api/game/recommend")
+#async def recommend_new_track(req: TrackRecommendationRequest):
+#    """Inserts community additions natively into Supabase using user-submitted metrics."""
+#    print(f"\n📥 New cloud recommendation from: {req.recommended_by}")
+#    initial_count = max(0, req.stream_count)
+#
+#    conn = get_db()
+#    try:
+#        cursor = conn.cursor()
+#        # Swapped '?' for '%s' and added 'RETURNING id' since Postgres doesn't use lastrowid
+#        cursor.execute(
+#            """
+#            INSERT INTO songs
+#                (title, artist, genre, spotify_uri, stream_count,
+#                 recommended_by, notes, last_updated)
+#            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+#            """,
+#            (
+#                req.title.strip(),
+#                req.artist.strip(),
+#                req.genre.strip(),
+#                req.spotify_uri.strip(),
+#                initial_count,
+#                req.recommended_by.strip() or "Anonymous",
+#                req.notes.strip(),
+#                datetime.utcnow().isoformat(),
+#            ),
+#        )
+#        new_id = cursor.fetchone()["id"]
+#        conn.commit()
+#        return {"status": "success", "id": new_id, "stream_count": initial_count}
+#    except Exception as db_err:
+#        raise HTTPException(status_code=500, detail=f"Database error: {db_err}")
+#    finally:
+#        conn.close()
 
 
 @app.post("/api/game/leaderboard")
