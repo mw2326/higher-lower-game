@@ -43,47 +43,6 @@ higher-lower-game/
 
 ---
 
-## Getting Started
-
-### 1. Install dependencies
-
-```bash
-pip install fastapi uvicorn httpx beautifulsoup4 requests
-```
-
-### 2. Set up the database
-
-If you're starting fresh from the baseline snapshot:
-
-```bash
-python reset_to_baseline.py
-```
-
-Or if you're migrating from an existing `music_v2.db`:
-
-```bash
-python pipeline/migrate_and_seed.py
-```
-
-### 3. Populate Spotify URIs
-
-Open `pipeline/populate_spotify_uris.py` and paste your Spotify API credentials at the top (get them free at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard)):
-
-```python
-SPOTIFY_CLIENT_ID     = "your_client_id"
-SPOTIFY_CLIENT_SECRET = "your_client_secret"
-```
-
-Then run it:
-
-```bash
-python pipeline/populate_spotify_uris.py
-```
-
-This looks up every song in the catalog and saves its Spotify track ID to the database. Songs with a URI will have their stream counts updated by the hourly scraper.
-
----
-
 ## API Endpoints
 
 | Method | Endpoint | Description |
