@@ -6,6 +6,17 @@ let trackAnchorA   = null;
 let trackTargetB   = null;
 let guessing       = false; // Lock flag to prevent double-click input bugs
 
+// ── Screen Manager State Flipper ───────────────────────
+
+function startGame() {
+    // Hide the welcome card, reveal the active scoreboards and card engine
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("gamePlayScreen").classList.remove("hidden");
+    
+    // Kick off the very first pair query immediately upon entry!
+    fetchNextGamePairing();
+}
+
 // ── Helpers ──────────────────────────────────────────────────
 
 function setButtons(enabled) {

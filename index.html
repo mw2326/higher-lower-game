@@ -9,6 +9,19 @@
 <body>
 
     <div class="game-panel">
+
+        <div id="startScreen" class="box" style="text-align: center; padding: 50px 30px;">
+            <h1 style="color: #fff; font-size: 2.3rem; margin-top: 0; margin-bottom: 12px; letter-spacing: -0.5px;">🎵 K-Pop Stream Challenge</h1>
+            <p style="color: #9ca3af; font-size: 1.1rem; line-height: 1.6; max-width: 580px; margin: 0 auto 35px auto;">
+                Test your knowledge of tracking magnitudes! Compare two massive tracks from your Supabase catalog and guess which song has accumulated more total stream plays.
+            </p>
+            <button class="game-btn btn-higher" id="btnStart" onclick="startGame()" style="width: auto; padding: 14px 45px; font-size: 1.15rem; margin: 0 auto; border-radius: 30px;">
+                Start Challenge ⚡
+            </button>
+        </div>
+
+        <div id="gamePlayScreen" class="hidden" style="display: flex; flex-direction: column; gap: 20px;">
+
         <div class="score-board">
             <div>🔥 Current Streak: <span id="currentStreak" class="score-val">0</span></div>
             <div>🏆 Personal Best: <span id="highScore" class="score-val">0</span></div>
@@ -25,7 +38,6 @@
                     <div class="track-artist" id="artistA">Artist</div>
                     <div class="stream-display" id="streamsA">—</div>
                     <div class="stream-label">Total Stream Count</div>
-                    
                     <div id="playerA"></div>
                 </div>
 
@@ -43,7 +55,6 @@
                         <button class="game-btn btn-higher" id="btnHigher" onclick="processPlayerGuess('higher')">Higher ⬆️</button>
                         <button class="game-btn btn-lower"  id="btnLower"  onclick="processPlayerGuess('lower')">Lower ⬇️</button>
                     </div>
-                    
                     <div id="playerB"></div>
                 </div>
 
