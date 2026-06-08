@@ -16,17 +16,13 @@ function startGame() {
     fetchNextGamePairing();
 }
 
-// ── Screen Manager State Flipper ───────────────────────
-
-function startGame() {
-    // Hide the welcome card, reveal the active scoreboards and card engine
-    document.getElementById("startScreen").classList.add("hidden");
+function restartGameLoop() {
+    // Smoothly bounce out of the Game Over card straight back into active play
+    document.getElementById("gameOverScreen").classList.add("hidden");
     document.getElementById("gamePlayScreen").classList.remove("hidden");
     
-    // Kick off the very first pair query immediately upon entry!
     fetchNextGamePairing();
 }
-
 // ── Helpers ──────────────────────────────────────────────────
 
 function setButtons(enabled) {
