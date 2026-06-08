@@ -6,6 +6,16 @@ let trackAnchorA   = null;
 let trackTargetB   = null;
 let guessing       = false; // Lock flag to prevent double-click input bugs
 
+function startGame() {
+    // Hide the welcome card overlay, reveal scoreboards and card engine
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("gameOverScreen").classList.add("hidden");
+    document.getElementById("gamePlayScreen").classList.remove("hidden");
+    
+    // Kick off the very first network pair query upon lobby exit
+    fetchNextGamePairing();
+}
+
 // ── Screen Manager State Flipper ───────────────────────
 
 function startGame() {
@@ -159,11 +169,15 @@ async function processPlayerGuess(playerChoice) {
         fetchNextTargetSongOnly();
 
     } else {
-        alert(
-            `❌ Incorrect!\n` +
-            `${trackTargetB.title} had ${countB.toLocaleString()} streams\n` +
-            `vs ${trackAnchorA.title}'s ${countA.toLocaleString()}.`
-        );
+        // ================================================================================= -->
+        // 🌟🆕 NEW MODIFICATION: ALERT WRAPPER ELIMINATED ➔ GENERATES VISUAL HTML RECAPS 🆕🌟
+        // ================================================================================= -->
+        const recapText = `<strong>${trackTargetB.title}</strong> had <strong>${countB.toLocaleString()}</strong> streams, vs <strong>${trackAnchorA.title}</strong>'s <strong>${countA.toLocaleString()}</strong> streams.`;
+        
+        document.getElementById("gameOverRecap").innerHTML = `
+            You finished with a score streak of <span class="score-val" style="font-size: 1.4rem;">${streakCounter}</span> win${streakCounter === 1 ? '' : 's'}!<br><br>
+            ${recapText}`;
+        // ================================================================================= -->
 
         if (streakCounter > 0) {
             await promptLeaderboardSubmission(streakCounter);
@@ -171,7 +185,13 @@ async function processPlayerGuess(playerChoice) {
 
         streakCounter = 0;
         document.getElementById("currentStreak").innerText = 0;
-        fetchNextGamePairing();
+        
+        // ================================================================================= -->
+        // 🌟🆕 NEW MODIFICATION: SCREEN TRANSITION FOR COLD HIDING PLAYGROUND & UNVEILING LOBBY 🆕🌟
+        // ================================================================================= -->
+        document.getElementById("gamePlayScreen").classList.add("hidden");
+        document.getElementById("gameOverScreen").classList.remove("hidden");
+        // ================================================================================= -->
     }
 }
 
