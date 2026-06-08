@@ -237,13 +237,32 @@ h2 {
 
 /* ── 📱 RESPONSIVE RESPONSIVENESS SHIELD ── */
 /* If the screen gets too narrow for side-by-side balancing, stack them cleanly */
-@media (max-width: 1150px) {
+@media (max-width: 768px) {
     body {
         grid-template-columns: 1fr;
         margin: 20px auto;
+        padding: 0 15px;
     }
-    .game-panel { grid-column: 1; max-width: 650px; }
-    .side-panel { grid-column: 1; max-width: 650px; margin: 0 auto; }
-    .arena { flex-direction: column; }
-    .vs-circle { right: 50%; top: auto; bottom: -30px; transform: translateX(50%); }
+    
+    .game-panel { 
+        grid-column: 1; 
+        max-width: 100%; 
+    }
+    
+    .side-panel { 
+        grid-column: 1; 
+        max-width: 100%; 
+        margin: 0 auto; 
+    }
+    
+    .arena { 
+        flex-direction: column; 
+    }
+    
+    .vs-circle { 
+        right: 50%; 
+        top: auto; 
+        bottom: -30px; 
+        transform: translateX(50%); 
+    }
 }
